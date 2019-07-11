@@ -39,10 +39,10 @@ private:
     uint64_t
 };
 
-bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const SplittingTree::NodePtr& cone_node, uint64_t signal_size, uint64_t sparsity, IndexGenerator& delta) {
+bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const SplittingTree::NodePtr& cone_node, int64_t signal_size, int64_t sparsity, IndexGenerator& delta) {
     auto filter = Filter(cone_node, signal_size);
-    uint64_t max_iters = 2 * sparsity * log2(sparsity) * log2(sparsity) * log2(signal_size);
-    for (uint64_t i = 0; i < max_iters; ++i) {
+    int64_t max_iters = 2 * sparsity * log2(sparsity) * log2(sparsity) * log2(signal_size);
+    for (int64_t i = 0; i < max_iters; ++i) {
         auto time = delta.Next();
         complex_t recovered_at_time = 0;
         for (auto freq: recovered_freq) {
@@ -57,4 +57,9 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
         }
     }
     return false;
+}
+
+FrequencyMap SparseFFT(const Signal& x, int64_t signal_size, int64_t sparsity) {
+    assert(signal_size > 1);
+
 }

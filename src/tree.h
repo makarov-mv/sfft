@@ -15,30 +15,29 @@ public:
     using NodePtr = std::shared_ptr<Node>;
 
     struct Node {
-        int length{0};
+        int level{0};
         uint64_t label{0};
 
         NodePtr left{nullptr};
         NodePtr right{nullptr};
-//        std::weak_ptr<Node> parent;
         Node* parent{nullptr};
 
-        Node(int length, uint64_t label) : length(length), label(label) {}
+        Node(int length, uint64_t label) : level(length), label(label) {}
         Node() {}
 
         Node CalcParent() const {
-            assert(length > 0);
-            return {length - 1, label & ((1ull << static_cast<uint64_t>(length - 1)) - 1)};
+            assert(level > 0);
+            return {level - 1, label & ((1ull << static_cast<uint64_t>(level - 1)) - 1)};
         }
 
         Node CalcLeft() const {
-            assert(length > 0);
-            return {length + 1, label + (1ull << static_cast<uint64_t>(length + 1))};
+            assert(level > 0);
+            return {level + 1, label + (1ull << static_cast<uint64_t>(level + 1))};
         }
 
         Node CalcRight() const {
-            assert(length > 0);
-            return {length + 1, label};
+            assert(level > 0);
+            return {level + 1, label};
         }
 
         bool HasBothChild() const {
@@ -46,9 +45,8 @@ public:
         }
 
 
-        std::vector<bool> GetRootPathMask () const {
+        std::vector<bool> GetRootPathMask() const {
             std::vector<bool> mask;
-//            for (auto node = this; node != nullptr; node = node->parent.lock().get()) {
             for (auto node = this; node != nullptr; node = node->parent) {
                 mask.push_back(node->HasBothChild());
             }
