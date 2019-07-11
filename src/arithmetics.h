@@ -18,3 +18,12 @@ complex_t CalcKernel(double power, double base) {
 bool NonZero(complex_t value) {
     return abs(value) > EPS;
 }
+
+int CalcLog(int64_t v) {
+    int res = 0;
+    while (v > 1) {
+        v /= 2;
+        ++res;
+    }
+    return res;
+}
