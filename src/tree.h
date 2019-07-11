@@ -1,11 +1,9 @@
 #pragma once
 
-#include "complex"
 #include "assert.h"
 #include "memory"
 #include "vector"
-
-using complex_t  = std::complex<double>;
+#include "arithmetics.h"
 
 class SplittingTree {
 public:

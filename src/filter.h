@@ -1,13 +1,8 @@
 #pragma once
 
 #include <vector>
-#include "tree.h"
-#include "math.h"
 #include <unordered_map>
-
-#define _USE_MATH_DEFINES
-const double PI = M_PI;
-const complex_t I = complex_t(0, 1);
+#include "tree.h"
 
 
 class Filter {
@@ -50,7 +45,7 @@ public:
         complex_t freq =  1;
         for (size_t i = 0; i < phase_.size(); ++i) {
             if (phase_[i] != 0) {
-                freq *= (1 + phase_[i] * std::exp(2 * PI * I * psi / (1 << (i + 1))));
+                freq *= (1 + phase_[i] * CalcKernel(psi, 1 << (i + 1)));
             }
         }
         return freq;
