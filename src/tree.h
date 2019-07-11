@@ -3,6 +3,7 @@
 #include "assert.h"
 #include "memory"
 #include "vector"
+#include "algorithm"
 #include "arithmetics.h"
 
 class SplittingTree {
@@ -16,7 +17,7 @@ public:
 
     struct Node {
         int level{0};
-        uint64_t label{0};
+        int64_t label{0};
 
         NodePtr left{nullptr};
         NodePtr right{nullptr};
@@ -24,21 +25,6 @@ public:
 
         Node(int length, uint64_t label) : level(length), label(label) {}
         Node() {}
-
-        Node CalcParent() const {
-            assert(level > 0);
-            return {level - 1, label & ((1ull << static_cast<uint64_t>(level - 1)) - 1)};
-        }
-
-        Node CalcLeft() const {
-            assert(level > 0);
-            return {level + 1, label + (1ull << static_cast<uint64_t>(level + 1))};
-        }
-
-        Node CalcRight() const {
-            assert(level > 0);
-            return {level + 1, label};
-        }
 
         bool HasBothChild() const {
             return left && right;
@@ -50,6 +36,7 @@ public:
             for (auto node = this; node != nullptr; node = node->parent) {
                 mask.push_back(node->HasBothChild());
             }
+            std::reverse(mask.begin(), mask.end());
             return mask;
         }
     };

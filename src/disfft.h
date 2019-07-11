@@ -40,7 +40,7 @@ private:
 
 bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const SplittingTree::NodePtr& cone_node, int64_t signal_size, int64_t sparsity, IndexGenerator& delta) {
     auto filter = Filter(cone_node, signal_size);
-    int64_t max_iters = 2 * sparsity * log2(sparsity) * log2(sparsity) * log2(signal_size);
+    int64_t max_iters = lround(2 * sparsity * log2(sparsity) * log2(sparsity) * log2(signal_size));
     for (int64_t i = 0; i < max_iters; ++i) {
         auto time = delta.Next();
         complex_t recovered_at_time = 0;
