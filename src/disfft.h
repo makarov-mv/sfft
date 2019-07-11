@@ -36,7 +36,6 @@ public:
 private:
     std::mt19937_64 rand_gen_;
     std::uniform_int_distribution<uint64_t> index_gen_;
-    uint64_t
 };
 
 bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const SplittingTree::NodePtr& cone_node, int64_t signal_size, int64_t sparsity, IndexGenerator& delta) {
@@ -46,7 +45,7 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
         auto time = delta.Next();
         complex_t recovered_at_time = 0;
         for (auto freq: recovered_freq) {
-            recovered_at_time += CalcKernel(freq.first * time, signal_size) * freq.second * filter.FilterFrequency(freq.first) / signal_size;
+            recovered_at_time += CalcKernel(freq.first * time, signal_size) * freq.second * filter.FilterFrequency(freq.first) / complex_t(signal_size, 0);
         }
         complex_t filtered_at_time = 0;
         for (auto value: filter.FilterTime()) {
