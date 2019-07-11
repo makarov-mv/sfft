@@ -29,8 +29,8 @@ public:
                 for (auto it : filter_) {
                     int index = it.first;
                     int64_t shift = size >> (i + 1);
-                    updated_filter[index] = (filter_[index] + phase_[i] * filter_[(index + shift) % size]) / 2;
-                    updated_filter[(index + size - shift) % size] = (filter_[(index + size - shift) % size] + phase_[i] * filter_[index]) / 2;
+                    updated_filter[index] = (filter_[index] + phase_[i] * filter_[(index + shift) % size]) / 2.;
+                    updated_filter[(index + size - shift) % size] = (filter_[(index + size - shift) % size] + phase_[i] * filter_[index]) / 2.;
                 }
                 filter_.swap(updated_filter);
                 updated_filter.clear();
@@ -46,7 +46,7 @@ public:
         complex_t freq =  1;
         for (size_t i = 0; i < phase_.size(); ++i) {
             if (NonZero(phase_[i])) {
-                freq *= (1 + phase_[i] * CalcKernel(psi, 1 << (i + 1))) / 2;
+                freq *= (1. + phase_[i] * CalcKernel(psi, 1 << (i + 1))) / 2.;
             }
         }
         return freq;
