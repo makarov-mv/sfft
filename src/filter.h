@@ -18,18 +18,19 @@ public:
         for (int i = 0; i + 1 < path_mask.size(); ++i) {
             int j = path_mask.size() - i - 1;
             if (path_mask[j]) {
-                phase_[i] = std::exp(-2 * PI * I * label / (1 << (i + 1)));
+                phase_[i] = CalcKernel(-label, 1 << (i + 1));
             }
         }
 
         filter_[0] = 1;
         for (int i = 0; i < phase_.size(); ++i) {
-            if (phase_[i] != 0) {
+            if (NonZero(phase_[i])) {
                 std::unordered_map<int, complex_t> updated_filter;
                 for (auto it : filter_) {
                     int index = it.first;
-                    updated_filter[index] = filter_[index] / 2 + phase_[i] * filter_[(index + (size >> (i + 1))) % size] / 2;
-                    updated_filter[(index + size - (size >> (i + 1))) % size] = filter_[(index + size - (size >> (i + 1))) % size] / 2 + phase_[i] * filter_[index] / 2;
+                    int64_t shift = size >> (i + 1);
+                    updated_filter[index] = (filter_[index] + phase_[i] * filter_[(index + shift) % size]) / 2;
+                    updated_filter[(index + size - shift) % size] = (filter_[(index + size - shift) % size] + phase_[i] * filter_[index]) / 2;
                 }
                 filter_.swap(updated_filter);
                 updated_filter.clear();
@@ -44,8 +45,8 @@ public:
     complex_t FilterFrequency(int psi) const {
         complex_t freq =  1;
         for (size_t i = 0; i < phase_.size(); ++i) {
-            if (phase_[i] != 0) {
-                freq *= (1 + phase_[i] * CalcKernel(psi, 1 << (i + 1)));
+            if (NonZero(phase_[i])) {
+                freq *= (1 + phase_[i] * CalcKernel(psi, 1 << (i + 1))) / 2;
             }
         }
         return freq;
