@@ -37,8 +37,8 @@ public:
         }
     }
 
-    complex_t FilterTime(int psi) const {
-        return filter_[psi];
+    const std::unordered_map<int, complex_t>& FilterTime() const {
+        return filter_;
     }
 
     complex_t FilterFrequency(int psi) const {
