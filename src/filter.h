@@ -1,9 +1,13 @@
 #pragma once
 
 #include <vector>
-#include "disfft.h"
+#include "tree.h"
 #include "math.h"
 #include <unordered_map>
+
+#define _USE_MATH_DEFINES
+const double PI = M_PI;
+const complex_t I = complex_t(0, 1);
 
 
 class Filter {
