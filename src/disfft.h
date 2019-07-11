@@ -32,6 +32,7 @@ public:
         Node* parent{nullptr};
 
         Node(int length, uint64_t label) : length(length), label(label) {}
+        Node() {}
 
         Node CalcParent() const {
             assert(length > 0);
