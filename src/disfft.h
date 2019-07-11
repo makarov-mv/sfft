@@ -5,6 +5,8 @@
 #include "random"
 
 using FrequencyMap = std::unordered_map<uint64_t, complex_t>;
+using NodePtr = SplittingTree::NodePtr;
+using Node = SplittingTree::Node;
 
 class Signal {
 public:
@@ -13,7 +15,7 @@ public:
 
 class SignalVector: public Signal {
 public:
-    SignalVector(std::vector<complex_t> v): values_(v) {
+    SignalVector(const std::vector<complex_t>& v): values_(v) {
     }
 
     complex_t ValueAtTime(int64_t t) const override {
@@ -60,5 +62,24 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
 
 FrequencyMap SparseFFT(const Signal& x, int64_t signal_size, int64_t sparsity) {
     assert(signal_size > 1);
+    /////////
+    SplittingTree tree{};
+    FrequencyMap recovered_freq{};
+    IndexGenerator delta{1, 1};
+    ////////
+    while (rand() % 2) {
+        NodePtr node = tree.GetLightestNode();
+        if (rand() % 2) {
 
+        } else {
+            node->AddChildren();
+            if (!ZeroTest(x, recovered_freq, node->left, signal_size, sparsity, delta)) {
+                node->left = nullptr;
+            }
+            if (ZeroTest(x, recovered_freq, node->right, signal_size, sparsity, delta)) {
+                node->right = nullptr;
+            }
+        }
+    }
+    return recovered_freq;
 }

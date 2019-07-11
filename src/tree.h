@@ -25,23 +25,28 @@ public:
         Node(int length, uint64_t label) : level(length), label(label) {}
         Node() {}
 
-        Node CalcParent() const {
+//        Node CalcParent() const {
+//            assert(level > 0);
+//            return {level - 1, label & ((1ull << static_cast<uint64_t>(level - 1)) - 1)};
+//        }
+
+        NodePtr MakeLeft() const {
             assert(level > 0);
-            return {level - 1, label & ((1ull << static_cast<uint64_t>(level - 1)) - 1)};
+            return std::make_shared<Node>(level + 1, label + (1ull << static_cast<uint64_t>(level + 1)));
         }
 
-        Node CalcLeft() const {
+        NodePtr MakeRight() const {
             assert(level > 0);
-            return {level + 1, label + (1ull << static_cast<uint64_t>(level + 1))};
-        }
-
-        Node CalcRight() const {
-            assert(level > 0);
-            return {level + 1, label};
+            return std::make_shared<Node>(level + 1, label);
         }
 
         bool HasBothChild() const {
             return left && right;
+        }
+
+        void AddChildren() {
+            left = MakeLeft();
+            right = MakeRight();
         }
 
 
@@ -58,7 +63,39 @@ public:
         return root_;
     }
 
+    NodePtr GetLightestNode() const {
+        return getLightest(root_);
+    }
+
+    bool RemoveNode(const NodePtr& node) {
+        Node* current = node.get();
+        while (current && !current->HasBothChild()) {
+            current = current->parent;
+        }
+        return current != nullptr;
+    }
+
 private:
+
+    NodePtr getLightest(const NodePtr& node) const {
+        if (!node->left && !node->right) {
+            return node;
+        }
+        NodePtr lightest(nullptr);
+        if (node->left) {
+            lightest = getLightest(node->left);
+        }
+        if (node->right) {
+            if (lightest) {
+                auto right_lightest = getLightest(node->right);
+                lightest = lightest->level < right_lightest->level ? lightest : right_lightest;
+            } else {
+                lightest = getLightest(node->right);
+            }
+        }
+        return lightest;
+    }
+
     NodePtr root_;
 };
 
