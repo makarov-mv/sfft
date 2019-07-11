@@ -1,4 +1,4 @@
-//
-// Created by bixind on 11.07.19.
-//
+#define CATCH_CONFIG_MAIN
+#include "catch.hpp"
 
+#include "disfft.h"
