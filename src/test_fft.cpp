@@ -142,3 +142,37 @@ TEST_CASE("Tree test remove") {
     REQUIRE(!tree.IsNonEmpty());
     REQUIRE(tree.GetRoot() == nullptr);
 }
+
+TEST_CASE("Tree get lightest 1") {
+    auto tree = SplittingTree();
+    auto root = tree.GetRoot();
+    REQUIRE(root == tree.GetLightestNode());
+    auto a = root->MakeLeft();
+    REQUIRE(a == tree.GetLightestNode());
+    auto b = root->MakeRight();
+    auto node = tree.GetLightestNode();
+    REQUIRE(b == node);
+    tree.RemoveNode(b);
+    node = tree.GetLightestNode();
+    REQUIRE(node == a);
+}
+
+TEST_CASE("Tree get lightest 2") {
+    auto tree = SplittingTree();
+    auto root = tree.GetRoot();
+    auto a1 = root->MakeLeft();
+    auto a2 = root->MakeRight();
+    auto b1 = a1->MakeLeft();
+    auto b2 = a1->MakeRight();
+    auto c1 = b2->MakeLeft();
+    auto c2 = b2->MakeRight();
+    REQUIRE(a2 == tree.GetLightestNode());
+    tree.RemoveNode(a2);
+    REQUIRE(tree.GetLightestNode() == b1);
+    tree.RemoveNode(b1);
+    REQUIRE(c2 == tree.GetLightestNode());
+    tree.RemoveNode(c2);
+    REQUIRE(c1 == tree.GetLightestNode());
+    tree.RemoveNode(c1);
+    REQUIRE(!tree.IsNonEmpty());
+}
