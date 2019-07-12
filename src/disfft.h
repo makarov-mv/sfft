@@ -28,7 +28,7 @@ private:
 
 class IndexGenerator {
 public:
-    IndexGenerator(uint64_t signal_size, uint64_t seed): rand_gen_(seed), index_gen_(0, signal_size) {
+    IndexGenerator(int64_t signal_size, uint64_t seed): rand_gen_(seed), index_gen_(0, signal_size) {
     }
 
     uint64_t Next() {
@@ -62,21 +62,30 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
 
 FrequencyMap SparseFFT(const Signal& x, int64_t signal_size, int64_t sparsity) {
     assert(signal_size > 1);
-    /////////
     SplittingTree tree{};
-    FrequencyMap recovered_freq{};
-    IndexGenerator delta{1, 1};
-    ////////
-    while (rand() % 2) {
-        NodePtr node = tree.GetLightestNode();
-        if (rand() % 2) {
+    FrequencyMap recovered_freq;
+    IndexGenerator delta{signal_size, 61};
 
+    while (tree.IsNonEmpty()) {
+        NodePtr node = tree.GetLightestNode();
+        if (node->level == CalcLog(signal_size)) {
+            auto filter = Filter(node, signal_size);
+            complex_t recovered = 0;
+            for (auto freq : recovered_freq) {
+                recovered += freq.second * filter.FilterFrequency(freq.first);
+            }
+            complex_t filtered = 0;
+            for (auto value : filter.FilterTime()) {
+                filtered += value.second * x.ValueAtTime((signal_size - value.first) % signal_size);
+            }
+            recovered_freq[node->label] += signal_size * 1. * filtered - recovered;
+            tree.RemoveNode(node);
         } else {
             node->AddChildren();
             if (!ZeroTest(x, recovered_freq, node->left, signal_size, sparsity, delta)) {
                 node->left = nullptr;
             }
-            if (ZeroTest(x, recovered_freq, node->right, signal_size, sparsity, delta)) {
+            if (!ZeroTest(x, recovered_freq, node->right, signal_size, sparsity, delta)) {
                 node->right = nullptr;
             }
         }
