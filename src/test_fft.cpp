@@ -274,7 +274,6 @@ TEST_CASE("ZeroTest 1") {
         REQUIRE(ZeroTest(x, chi, a1, 4, 2, delta));
         REQUIRE(ZeroTest(x, chi, a2, 4, 2, delta));
     }
->>>>>>> d8cf515ab3a97be99f4059c2823c37a0aa4f4568
 }
 
 TEST_CASE("ZeroTest 2") {
