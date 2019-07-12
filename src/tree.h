@@ -48,8 +48,8 @@ public:
         }
 
         void AddChildren() {
-            left = MakeLeft();
-            right = MakeRight();
+            MakeLeft();
+            MakeRight();
         }
 
 
@@ -89,8 +89,8 @@ public:
         }
     }
 
-    bool IsNonEmpty() const {
-        return root_ != nullptr;
+    bool IsEmpty() const {
+        return root_ == nullptr;
     }
 
 private:
