@@ -73,16 +73,18 @@ public:
 
     void RemoveNode(const NodePtr& node) {
         Node* current = node.get();
+        Node* son = nullptr;
         while (current && !current->HasBothChild()) {
+            son = current;
             current = current->parent;
         }
         if (!current) {
-            root_ = nullptr;
+            root_.reset();
         }
-        if (current->left->parent == current) {
-            current->left = nullptr;
+        if (current->left.get() == son) {
+            current->left.reset();
         } else {
-            current->right = nullptr;
+            current->right.reset();
         }
     }
 
