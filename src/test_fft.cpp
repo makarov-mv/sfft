@@ -10,6 +10,8 @@ bool CheckEqual(complex_t a, complex_t b) {
     return !NonZero(a - b);
 }
 
+using namespace std::complex_literals;
+
 TEST_CASE("Filters frequency simple 1") {
     auto root = std::make_shared<Node>();
     auto a = root->MakeLeft();
@@ -175,4 +177,132 @@ TEST_CASE("Tree get lightest 2") {
     REQUIRE(c1 == tree.GetLightestNode());
     tree.RemoveNode(c1);
     REQUIRE(!tree.IsNonEmpty());
+}
+
+TEST_CASE("DataSignal") {
+    complex_t data[] = {0, 1, 2, 3, 4};
+    DataSignal x(5, data);
+    int p = 0;
+    for (int t = -10; t < 10; ++t) {
+        REQUIRE(x.ValueAtTime(t) == data[p]);
+        p = (p + 1) % 5;
+
+    }
+}
+
+TEST_CASE("ZeroTest 1") {
+    auto tree = SplittingTree();
+    auto root = tree.GetRoot();
+    auto a1 = root->MakeLeft();
+    auto a2 = root->MakeRight();
+    FrequencyMap chi{};
+    IndexGenerator delta(4, 321);
+
+    {
+        // ifft([1, 0, 0, 0])
+        complex_t data[] = {0.25 + 0.j, 0.25 - 0.j, 0.25 + 0.j, 0.25 + 0.j};
+        DataSignal x(4, data);
+
+        REQUIRE(!ZeroTest(x, chi, a1, 4, 1, delta));
+        REQUIRE(ZeroTest(x, chi, a2, 4, 1, delta));
+    }
+    {
+        // ifft([1, 0, 1, 0])
+        complex_t data[] = {0.5+0.j, 0. -0.j, 0.5+0.j, 0. +0.j};
+        DataSignal x(4, data);
+
+        REQUIRE(!ZeroTest(x, chi, a1, 4, 2, delta));
+        REQUIRE(ZeroTest(x, chi, a2, 4, 2, delta));
+    }
+    {
+        // ifft([0, 1, 1, 0])
+        complex_t data[] = {0.5 +0.j  , -0.25+0.25j,  0.  +0.j  , -0.25-0.25j};
+        DataSignal x(4, data);
+
+        REQUIRE(ZeroTest(x, chi, a1, 4, 2, delta));
+        REQUIRE(ZeroTest(x, chi, a2, 4, 2, delta));
+    }
+}
+
+TEST_CASE("ZeroTest 2") {
+    auto tree = SplittingTree();
+    auto root = tree.GetRoot();
+    auto a = root->MakeRight();
+    auto b1 = root->MakeLeft();
+    auto b2 = b1->MakeLeft();
+    auto b3 = b2->MakeRight();
+    IndexGenerator delta(4, 321);
+
+    {
+        // ifft([0, 0, 0, 0, 0, 0, 0, 0])
+        complex_t data[] = {0, 0, 0, 0, 0, 0, 0, 0};
+        FrequencyMap chi{};
+        DataSignal x(8, data);
+
+        REQUIRE(!ZeroTest(x, chi, a, 8, 1, delta));
+        REQUIRE(!ZeroTest(x, chi, b3, 8, 1, delta));
+    }
+    {
+        // ifft([0, 0, 0, 1, 0, 0, 0, 0])
+        complex_t data[] = {0.125     +0.j        , -0.08838835+0.08838835j,
+                            0.        -0.125j     ,  0.08838835+0.08838835j,
+                            -0.125     +0.j        ,  0.08838835-0.08838835j,
+                            0.        +0.125j     , -0.08838835-0.08838835j };
+        FrequencyMap chi{};
+        DataSignal x(8, data);
+
+        REQUIRE(!ZeroTest(x, chi, a, 8, 1, delta));
+        REQUIRE(ZeroTest(x, chi, b3, 8, 1, delta));
+    }
+    {
+        // ifft([0, 0, 1, 1, 1, 0, 0, 0])
+        complex_t data[] = { 0.375     +0.j        , -0.21338835+0.21338835j,
+                             0.        -0.125j     , -0.03661165-0.03661165j,
+                             0.125     +0.j        , -0.03661165+0.03661165j,
+                             0.        +0.125j     , -0.21338835-0.21338835j};
+        FrequencyMap chi{};
+        DataSignal x(8, data);
+
+        REQUIRE(ZeroTest(x, chi, a, 8, 3, delta));
+        REQUIRE(ZeroTest(x, chi, b3, 8, 3, delta));
+    }
+    {
+        // ifft([0, 0, 0, 1, 0, 0, 0, 1])
+        complex_t data[] = { 0.25+0.j  ,  0.  -0.j  ,  0.  -0.25j,  0.  -0.j  , -0.25+0.j  ,
+                             0.  +0.j  ,  0.  +0.25j,  0.  +0.j  };
+        FrequencyMap chi;
+        chi[7] = 1.;
+        DataSignal x(8, data);
+
+        REQUIRE(!ZeroTest(x, chi, a, 8, 2, delta));
+        REQUIRE(ZeroTest(x, chi, b3, 8, 2, delta));
+    }
+    {
+        // ifft([0, 0, 0, 2, 0, -1, 0, 3])
+        complex_t data[] = { 0.5      +0.00000000e+00j,  0.1767767-1.38777878e-17j,
+                             0.       -7.50000000e-01j, -0.1767767-1.38777878e-17j,
+                             -0.5      +0.00000000e+00j, -0.1767767+1.38777878e-17j,
+                             0.       +7.50000000e-01j,  0.1767767+1.38777878e-17j};
+        FrequencyMap chi;
+        chi[7] = 3.;
+        chi[5] = -1.;
+        DataSignal x(8, data);
+
+        REQUIRE(!ZeroTest(x, chi, a, 8, 3, delta));
+        REQUIRE(ZeroTest(x, chi, b3, 8, 3, delta));
+    }
+    {
+        // ifft([0, 0, 0, 0, 0, -1, 0, 3])
+        complex_t data[] = { 0.25      +0.j       ,  0.35355339-0.1767767j,
+                             0.        -0.5j      , -0.35355339-0.1767767j,
+                             -0.25      +0.j       , -0.35355339+0.1767767j,
+                             0.        +0.5j      ,  0.35355339+0.1767767j};
+        FrequencyMap chi;
+        chi[7] = 3.;
+        chi[5] = -1.;
+        DataSignal x(8, data);
+
+        REQUIRE(!ZeroTest(x, chi, a, 8, 3, delta));
+        REQUIRE(!ZeroTest(x, chi, b3, 8, 3, delta));
+    }
 }

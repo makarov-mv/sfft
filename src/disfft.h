@@ -10,20 +10,27 @@ using Node = SplittingTree::Node;
 
 class Signal {
 public:
-    virtual complex_t ValueAtTime(int64_t) const;
+    virtual ~Signal() = default;
+
+    virtual complex_t ValueAtTime(int64_t) const = 0;
 };
 
-class SignalVector: public Signal {
+class DataSignal: public Signal {
 public:
-    SignalVector(const std::vector<complex_t>& v): values_(v) {
+    DataSignal(int64_t signal_size, const complex_t* v): signal_size_(signal_size), values_(v) {
     }
 
     complex_t ValueAtTime(int64_t t) const override {
+        t %= signal_size_;
+        if (t < 0) {
+            t += signal_size_;
+        }
         return values_[t];
     }
 
 private:
-    std::vector<complex_t> values_;
+    const int64_t signal_size_;
+    const complex_t* values_;
 };
 
 class IndexGenerator {
@@ -42,7 +49,7 @@ private:
 
 bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const SplittingTree::NodePtr& cone_node, int64_t signal_size, int64_t sparsity, IndexGenerator& delta) {
     auto filter = Filter(cone_node, signal_size);
-    int64_t max_iters = lround(2 * sparsity * log2(sparsity) * log2(sparsity) * log2(signal_size));
+    int64_t max_iters = std::max<int64_t>(llround(2 * sparsity * log2(sparsity) * log2(sparsity) * log2(signal_size)), 2);
     for (int64_t i = 0; i < max_iters; ++i) {
         auto time = delta.Next();
         complex_t recovered_at_time = 0;
