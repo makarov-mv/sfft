@@ -25,16 +25,24 @@ public:
         for (int i = 0; i < static_cast<int>(phase_.size()); ++i) {
             if (NonZero(phase_[i])) {
                 std::unordered_map<int64_t, complex_t> updated_filter;
+                int64_t shift = size >> (i + 1);
                 for (auto it : filter_) {
-                    int index = it.first;
-                    int64_t shift = size >> (i + 1);
-                    updated_filter[index] = (filter_[index] + phase_[i] * filter_[(index + shift) % size]) / 2.;
-                    updated_filter[(index + size - shift) % size] = (filter_[(index + size - shift) % size] + phase_[i] * filter_[index]) / 2.;
+                    int64_t index = it.first;
+                    updated_filter[index] = (FilterValueAtTime(index) + phase_[i] * FilterValueAtTime((index + shift) % size)) / 2.;
+                    updated_filter[(index + size - shift) % size] = (FilterValueAtTime((index + size - shift) % size) + phase_[i] * FilterValueAtTime(index)) / 2.;
                 }
                 filter_.swap(updated_filter);
                 updated_filter.clear();
             }
         }
+    }
+
+    complex_t FilterValueAtTime(int64_t time) {
+        auto it = filter_.find(time);
+        if (it != filter_.end()) {
+            return it->second;
+        }
+        return 0.;
     }
 
     const std::unordered_map<int64_t, complex_t>& FilterTime() const {

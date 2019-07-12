@@ -121,6 +121,24 @@ TEST_CASE("Filters time simple 2") {
     REQUIRE(CheckEqual(it->second, -0.5));
 }
 
+TEST_CASE("Filter full simple") {
+    auto tree = SplittingTree();
+    auto root = tree.GetRoot();
+    auto a1 = root->MakeLeft();
+    auto a2 = root->MakeRight();
+    auto b1 = a2->MakeLeft();
+    auto b2 = a2->MakeRight();
+
+    auto filter = Filter(b2, 4);
+    for (int i = 0; i < 4; ++i) {
+        REQUIRE(CheckEqual(filter.FilterValueAtTime(i), 0.25));
+    }
+    REQUIRE(CheckEqual(filter.FilterFrequency(0), 1.));
+    for (int i = 1; i < 4; ++i) {
+        REQUIRE(CheckEqual(filter.FilterFrequency(i), 0.));
+    }
+}
+
 TEST_CASE("Tree test remove") {
     auto tree = SplittingTree();
     auto root = tree.GetRoot();
@@ -276,6 +294,26 @@ TEST_CASE("ZeroTest 1") {
     }
 }
 
+TEST_CASE("ZeroTest 1.5") {
+    auto tree = SplittingTree();
+    auto root = tree.GetRoot();
+    auto a1 = root->MakeLeft();
+    auto a2 = root->MakeRight();
+    auto b1 = a2->MakeLeft();
+    auto b2 = a2->MakeRight();
+    FrequencyMap chi{};
+    IndexGenerator delta(4, 321);
+
+    {
+        // ifft([0, 1, 1, 0])
+        complex_t data[] = {0.5 +0.j  , -0.25+0.25j,  0.  +0.j  , -0.25-0.25j};
+        DataSignal x(4, data);
+
+        REQUIRE(ZeroTest(x, chi, b1, 4, 2, delta));
+        REQUIRE(!ZeroTest(x, chi, b2, 4, 2, delta));
+    }
+}
+
 TEST_CASE("ZeroTest 2") {
     auto tree = SplittingTree();
     auto root = tree.GetRoot();
@@ -283,7 +321,7 @@ TEST_CASE("ZeroTest 2") {
     auto b1 = root->MakeLeft();
     auto b2 = b1->MakeLeft();
     auto b3 = b2->MakeRight();
-    IndexGenerator delta(4, 321); // WHYYYY???????
+    IndexGenerator delta(8, 321);
 
     {
         // ifft([0, 0, 0, 0, 0, 0, 0, 0])
@@ -358,8 +396,8 @@ TEST_CASE("ZeroTest 2") {
         chi[5] = -1.;
         DataSignal x(8, data);
 
-        REQUIRE(!ZeroTest(x, chi, a, 8, 3, delta)); //WHY SPARSITY IS 3??
-        REQUIRE(!ZeroTest(x, chi, b3, 8, 3, delta));
+        REQUIRE(!ZeroTest(x, chi, a, 8, 2, delta));
+        REQUIRE(!ZeroTest(x, chi, b3, 8, 2, delta));
     }
 }
 
@@ -377,52 +415,55 @@ std::vector<complex_t> GetSignalFromMap(const FrequencyMap& recovered_freq, int6
     return signal;
 }
 
+bool RunSFFT(int64_t signal_size, int64_t sparsity, std::vector<complex_t> data, std::vector<complex_t> desired) {
+    assert(signal_size == static_cast<int64_t>(data.size()));
+    assert(signal_size == static_cast<int64_t>(desired.size()));
+    assert(sparsity <= signal_size);
+    DataSignal x(signal_size, data.data());
+
+    FrequencyMap frequency = SparseFFT(x, signal_size, sparsity);
+    auto result = GetSignalFromMap(frequency, signal_size);
+
+    return std::equal(desired.begin(), desired.end(), result.begin(), CheckEqual);
+}
+
 TEST_CASE("SparseFFT 1") {
-    {
-        const int64_t signal_size = 4;
-        complex_t data[signal_size] = {0, 0, 0, 0};
-        DataSignal x(signal_size, data);
+    REQUIRE(RunSFFT(4, 0,
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}
+    ));
+    REQUIRE(RunSFFT(4, 1,
+            { 0.25+0.j  ,  0.  +0.25j, -0.25+0.j  ,  0.  -0.25j},
+            {0, 1, 0, 0}
+    ));
+    REQUIRE(RunSFFT(4, 2,
+            {0.5 +0.j  , -0.25+0.25j,  0.  +0.j  , -0.25-0.25j},
+            {0, 1, 1, 0}
+    ));
+    REQUIRE(RunSFFT(4, 2,
+            {0.5 +0.j  , -0.25-0.25j,  0.  +0.j  , -0.25+0.25j},
+            {0, 0, 1, 1}
+    ));
+    REQUIRE(RunSFFT(4, 3,
+            {0.75+0.j  , 0.  -0.25j, 0.25+0.j  , 0.  +0.25j},
+            {1, 0, 1, 1}
+    ));
+    REQUIRE(RunSFFT(4, 4,
+            {1, 0, 0, 0},
+            {1, 1, 1, 1}
+    ));
+}
 
-        FrequencyMap frequency = SparseFFT(x, signal_size, 0);
-        auto result = GetSignalFromMap(frequency, signal_size);
-
-        std::vector<complex_t> desired = {0, 0, 0, 0};
-        REQUIRE(std::equal(desired.begin(), desired.end(), result.begin(), CheckEqual));
-    }
-
-    {
-        const int64_t signal_size =
-        complex_t data[signal_size] =
-        DataSignal x(signal_size, data);
-
-        FrequencyMap frequency = SparseFFT(x, signal_size, );
-        auto result = GetSignalFromMap(frequency, signal_size);
-
-        std::vector<complex_t> desired =
-        REQUIRE(std::equal(desired.begin(), desired.end(), result.begin(), CheckEqual));
-    }
-
-    {
-        const int64_t signal_size =
-        complex_t data[signal_size] =
-        DataSignal x(signal_size, data);
-
-        FrequencyMap frequency = SparseFFT(x, signal_size, );
-        auto result = GetSignalFromMap(frequency, signal_size);
-
-        std::vector<complex_t> desired =
-        REQUIRE(std::equal(desired.begin(), desired.end(), result.begin(), CheckEqual));
-    }
-
-    {
-        const int64_t signal_size =
-        complex_t data[signal_size] =
-        DataSignal x(signal_size, data);
-
-        FrequencyMap frequency = SparseFFT(x, signal_size, );
-        auto result = GetSignalFromMap(frequency, signal_size);
-
-        std::vector<complex_t> desired =
-        REQUIRE(std::equal(desired.begin(), desired.end(), result.begin(), CheckEqual));
-    }
+TEST_CASE("SparseFFT 2") {
+    REQUIRE(RunSFFT(8, 3,
+                    { 1.25               +0.j                 ,
+                      -0.8169417382415922 -0.44194173824159216j,
+                      0.625              +0.625j              ,
+                      0.06694173824159222-0.44194173824159216j,
+                      0.                 +0.j                 ,
+                      0.06694173824159222+0.44194173824159216j,
+                      0.625              -0.625j              ,
+                      -0.8169417382415922 +0.44194173824159216j},
+                    {1, 0, 0, 0, 4, 5, 0, 0}
+    ));
 }

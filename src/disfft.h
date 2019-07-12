@@ -90,10 +90,10 @@ FrequencyMap SparseFFT(const Signal& x, int64_t signal_size, int64_t sparsity) {
         } else {
             node->AddChildren();
             if (!ZeroTest(x, recovered_freq, node->left, signal_size, sparsity, delta)) {
-                node->left = nullptr;
+                tree.RemoveNode(node->left);
             }
             if (!ZeroTest(x, recovered_freq, node->right, signal_size, sparsity, delta)) {
-                node->right = nullptr;
+                tree.RemoveNode(node->right);
             }
         }
     }
