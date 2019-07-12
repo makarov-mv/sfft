@@ -4,7 +4,7 @@
 #include <algorithm>
 #include "random"
 
-using FrequencyMap = std::unordered_map<uint64_t, complex_t>;
+using FrequencyMap = std::unordered_map<int64_t, complex_t>;
 using NodePtr = SplittingTree::NodePtr;
 using Node = SplittingTree::Node;
 
@@ -28,16 +28,16 @@ private:
 
 class IndexGenerator {
 public:
-    IndexGenerator(int64_t signal_size, uint64_t seed): rand_gen_(seed), index_gen_(0, signal_size) {
+    IndexGenerator(int64_t signal_size, int64_t seed): rand_gen_(seed), index_gen_(0, signal_size) {
     }
 
-    uint64_t Next() {
+    int64_t Next() {
         return index_gen_(rand_gen_);
     }
 
 private:
     std::mt19937_64 rand_gen_;
-    std::uniform_int_distribution<uint64_t> index_gen_;
+    std::uniform_int_distribution<int64_t> index_gen_;
 };
 
 bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const SplittingTree::NodePtr& cone_node, int64_t signal_size, int64_t sparsity, IndexGenerator& delta) {
