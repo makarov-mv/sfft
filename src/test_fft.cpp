@@ -283,7 +283,7 @@ TEST_CASE("ZeroTest 2") {
     auto b1 = root->MakeLeft();
     auto b2 = b1->MakeLeft();
     auto b3 = b2->MakeRight();
-    IndexGenerator delta(4, 321);
+    IndexGenerator delta(4, 321); // WHYYYY???????
 
     {
         // ifft([0, 0, 0, 0, 0, 0, 0, 0])
@@ -358,7 +358,71 @@ TEST_CASE("ZeroTest 2") {
         chi[5] = -1.;
         DataSignal x(8, data);
 
-        REQUIRE(!ZeroTest(x, chi, a, 8, 3, delta));
+        REQUIRE(!ZeroTest(x, chi, a, 8, 3, delta)); //WHY SPARSITY IS 3??
         REQUIRE(!ZeroTest(x, chi, b3, 8, 3, delta));
     }
+}
+
+
+std::vector<complex_t> GetSignalFromMap(const FrequencyMap& recovered_freq, int64_t signal_size) {
+    std::vector<complex_t> signal(signal_size);
+    for (int64_t i = 0; i < signal_size; ++i) {
+        auto it = recovered_freq.find(i);
+        if (it != recovered_freq.end()) {
+            signal[i] = recovered_freq.at(i);
+        } else {
+            signal[i] = 0.;
+        }
+    }
+    return signal;
+}
+
+TEST_CASE("SparseFFT 1") {
+    {
+        const int64_t signal_size = 4;
+        complex_t data[signal_size] = {0, 0, 0, 0};
+        DataSignal x(signal_size, data);
+
+        FrequencyMap frequency = SparseFFT(x, signal_size, 0);
+        auto result = GetSignalFromMap(frequency, signal_size);
+
+        std::vector<complex_t> desired = {0, 0, 0, 0};
+        REQUIRE(std::equal(desired.begin(), desired.end(), result.begin(), CheckEqual));
+    }
+
+//    {
+//        const int64_t signal_size =
+//        complex_t data[signal_size] =
+//        DataSignal x(signal_size, data);
+//
+//        FrequencyMap frequency = SparseFFT(x, signal_size, );
+//        auto result = GetSignalFromMap(frequency, signal_size);
+//
+//        std::vector<complex_t> desired =
+//        REQUIRE(std::equal(desired.begin(), desired.end(), result.begin(), CheckEqual));
+//    }
+//
+//    {
+//        const int64_t signal_size =
+//        complex_t data[signal_size] =
+//        DataSignal x(signal_size, data);
+//
+//        FrequencyMap frequency = SparseFFT(x, signal_size, );
+//        auto result = GetSignalFromMap(frequency, signal_size);
+//
+//        std::vector<complex_t> desired =
+//        REQUIRE(std::equal(desired.begin(), desired.end(), result.begin(), CheckEqual));
+//    }
+//
+//    {
+//        const int64_t signal_size =
+//        complex_t data[signal_size] =
+//        DataSignal x(signal_size, data);
+//
+//        FrequencyMap frequency = SparseFFT(x, signal_size, );
+//        auto result = GetSignalFromMap(frequency, signal_size);
+//
+//        std::vector<complex_t> desired =
+//        REQUIRE(std::equal(desired.begin(), desired.end(), result.begin(), CheckEqual));
+//    }
 }
