@@ -141,7 +141,7 @@ TEST_CASE("Tree test remove") {
     REQUIRE(b->right == nullptr);
 
     tree.RemoveNode(b);
-    REQUIRE(!tree.IsNonEmpty());
+    REQUIRE(tree.IsEmpty());
     REQUIRE(tree.GetRoot() == nullptr);
 }
 
@@ -176,7 +176,7 @@ TEST_CASE("Tree get lightest 2") {
     tree.RemoveNode(c2);
     REQUIRE(c1 == tree.GetLightestNode());
     tree.RemoveNode(c1);
-    REQUIRE(!tree.IsNonEmpty());
+    REQUIRE(tree.IsEmpty());
 }
 
 TEST_CASE("DataSignal") {
