@@ -5,6 +5,7 @@
 #include "vector"
 #include "algorithm"
 #include "arithmetics.h"
+#include "tuple"
 
 class SplittingTree {
 public:
@@ -67,7 +68,7 @@ public:
     }
 
     NodePtr GetLightestNode() const {
-        return getLightest(root_);
+        return getLightest(root_).first;
     }
 
     void RemoveNode(const NodePtr& node) {
@@ -93,24 +94,26 @@ public:
     }
 
 private:
-
-    NodePtr getLightest(const NodePtr& node) const {
+    std::pair<NodePtr, int> getLightest(const NodePtr& node) const {
         if (!node->left && !node->right) {
-            return node;
+            return {node, 0};
         }
         NodePtr lightest(nullptr);
+        int weight;
         if (node->left) {
-            lightest = getLightest(node->left);
+            std::tie(lightest, weight) = getLightest(node->left);
         }
         if (node->right) {
             if (lightest) {
-                auto right_lightest = getLightest(node->right);
-                lightest = lightest->level < right_lightest->level ? lightest : right_lightest;
+                auto [right_lightest, right_weight] = getLightest(node->right);
+                lightest = weight < right_weight ? lightest : right_lightest;
+                return {lightest, std::min(weight, right_weight) + 1};
             } else {
-                lightest = getLightest(node->right);
+                std::tie(lightest, weight) = getLightest(node->right);
+                return {lightest, weight};
             }
         }
-        return lightest;
+        return {lightest, weight};
     }
 
     NodePtr root_;
