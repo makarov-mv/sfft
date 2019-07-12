@@ -23,17 +23,23 @@ public:
         NodePtr right{nullptr};
         Node* parent{nullptr};
 
-        Node(int length, uint64_t label) : level(length), label(label) {}
+        Node(int length, int64_t label) : level(length), label(label) {}
         Node() {}
 
-        NodePtr MakeLeft() const {
-            assert(level > 0);
-            return std::make_shared<Node>(level + 1, label + (1ull << static_cast<uint64_t>(level + 1)));
+        NodePtr MakeLeft() {
+            assert(level >= 0);
+            auto son = std::make_shared<Node>(level + 1, label + (1ll << static_cast<int64_t>(level)));
+            son->parent = this;
+            this->left = son;
+            return son;
         }
 
-        NodePtr MakeRight() const {
-            assert(level > 0);
-            return std::make_shared<Node>(level + 1, label);
+        NodePtr MakeRight() {
+            assert(level >= 0);
+            auto son = std::make_shared<Node>(level + 1, label);
+            son->parent = this;
+            this->right = son;
+            return son;
         }
 
         bool HasBothChild() const {

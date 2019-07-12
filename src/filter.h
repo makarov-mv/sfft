@@ -24,7 +24,7 @@ public:
         filter_[0] = 1;
         for (int i = 0; i < static_cast<int>(phase_.size()); ++i) {
             if (NonZero(phase_[i])) {
-                std::unordered_map<uint64_t, complex_t> updated_filter;
+                std::unordered_map<int64_t, complex_t> updated_filter;
                 for (auto it : filter_) {
                     int index = it.first;
                     int64_t shift = size >> (i + 1);
@@ -37,7 +37,7 @@ public:
         }
     }
 
-    const std::unordered_map<uint64_t, complex_t>& FilterTime() const {
+    const std::unordered_map<int64_t, complex_t>& FilterTime() const {
         return filter_;
     }
 
@@ -54,5 +54,5 @@ public:
 private:
 
     std::vector<complex_t> phase_;
-    std::unordered_map<uint64_t, complex_t> filter_;
+    std::unordered_map<int64_t, complex_t> filter_;
 };
