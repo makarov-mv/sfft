@@ -1,20 +1,11 @@
-#define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 #include <unordered_set>
 #include <random>
 #include <algorithm>
 #include <set>
 
-#include "disfft.h"
+#include "utility_test.h"
 
-using Node = SplittingTree::Node;
-using NodePtr = SplittingTree::NodePtr;
-
-bool CheckEqual(complex_t a, complex_t b) {
-    return !NonZero(a - b);
-}
-
-using namespace std::complex_literals;
 
 TEST_CASE("Filters frequency simple 1") {
     auto root = std::make_shared<Node>();
@@ -399,32 +390,6 @@ TEST_CASE("ZeroTest 2") {
         REQUIRE(!ZeroTest(x, chi, a, 8, 2, delta));
         REQUIRE(!ZeroTest(x, chi, b3, 8, 2, delta));
     }
-}
-
-
-std::vector<complex_t> GetSignalFromMap(const FrequencyMap& recovered_freq, int64_t signal_size) {
-    std::vector<complex_t> signal(signal_size);
-    for (int64_t i = 0; i < signal_size; ++i) {
-        auto it = recovered_freq.find(i);
-        if (it != recovered_freq.end()) {
-            signal[i] = recovered_freq.at(i);
-        } else {
-            signal[i] = 0.;
-        }
-    }
-    return signal;
-}
-
-bool RunSFFT(int64_t signal_size, int64_t sparsity, std::vector<complex_t> data, std::vector<complex_t> desired) {
-    assert(signal_size == static_cast<int64_t>(data.size()));
-    assert(signal_size == static_cast<int64_t>(desired.size()));
-    assert(sparsity <= signal_size);
-    DataSignal x(signal_size, data.data());
-
-    FrequencyMap frequency = SparseFFT(x, signal_size, sparsity);
-    auto result = GetSignalFromMap(frequency, signal_size);
-
-    return std::equal(desired.begin(), desired.end(), result.begin(), CheckEqual);
 }
 
 TEST_CASE("SparseFFT 1") {
