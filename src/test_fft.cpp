@@ -114,3 +114,31 @@ TEST_CASE("Filters time simple 2") {
     REQUIRE(it != filter_time.end());
     REQUIRE(CheckEqual(it->second, -0.5));
 }
+
+TEST_CASE("Tree test remove") {
+    auto tree = SplittingTree();
+    auto root = tree.GetRoot();
+    auto a = root->MakeLeft();
+    auto b = root->MakeRight();
+    REQUIRE(root->left == a);
+    REQUIRE(root->right == b);
+    REQUIRE(a->parent == root.get());
+    REQUIRE(b->parent == root.get());
+    REQUIRE(root->parent == nullptr);
+    REQUIRE(a->left == nullptr);
+    REQUIRE(a->right == nullptr);
+    REQUIRE(b->left == nullptr);
+    REQUIRE(b->right == nullptr);
+
+    tree.RemoveNode(a);
+    REQUIRE(root->left == nullptr);
+    REQUIRE(root->right == b);
+    REQUIRE(b->parent == root.get());
+    REQUIRE(root->parent == nullptr);
+    REQUIRE(b->left == nullptr);
+    REQUIRE(b->right == nullptr);
+
+    tree.RemoveNode(b);
+    REQUIRE(!tree.IsNonEmpty());
+    REQUIRE(tree.GetRoot() == nullptr);
+}
