@@ -114,3 +114,65 @@ TEST_CASE("Filters time simple 2") {
     REQUIRE(it != filter_time.end());
     REQUIRE(CheckEqual(it->second, -0.5));
 }
+
+TEST_CASE("Tree test remove") {
+    auto tree = SplittingTree();
+    auto root = tree.GetRoot();
+    auto a = root->MakeLeft();
+    auto b = root->MakeRight();
+    REQUIRE(root->left == a);
+    REQUIRE(root->right == b);
+    REQUIRE(a->parent == root.get());
+    REQUIRE(b->parent == root.get());
+    REQUIRE(root->parent == nullptr);
+    REQUIRE(a->left == nullptr);
+    REQUIRE(a->right == nullptr);
+    REQUIRE(b->left == nullptr);
+    REQUIRE(b->right == nullptr);
+
+    tree.RemoveNode(a);
+    REQUIRE(root->left == nullptr);
+    REQUIRE(root->right == b);
+    REQUIRE(b->parent == root.get());
+    REQUIRE(root->parent == nullptr);
+    REQUIRE(b->left == nullptr);
+    REQUIRE(b->right == nullptr);
+
+    tree.RemoveNode(b);
+    REQUIRE(!tree.IsNonEmpty());
+    REQUIRE(tree.GetRoot() == nullptr);
+}
+
+TEST_CASE("Tree get lightest 1") {
+    auto tree = SplittingTree();
+    auto root = tree.GetRoot();
+    REQUIRE(root == tree.GetLightestNode());
+    auto a = root->MakeLeft();
+    REQUIRE(a == tree.GetLightestNode());
+    auto b = root->MakeRight();
+    auto node = tree.GetLightestNode();
+    REQUIRE(b == node);
+    tree.RemoveNode(b);
+    node = tree.GetLightestNode();
+    REQUIRE(node == a);
+}
+
+TEST_CASE("Tree get lightest 2") {
+    auto tree = SplittingTree();
+    auto root = tree.GetRoot();
+    auto a1 = root->MakeLeft();
+    auto a2 = root->MakeRight();
+    auto b1 = a1->MakeLeft();
+    auto b2 = a1->MakeRight();
+    auto c1 = b2->MakeLeft();
+    auto c2 = b2->MakeRight();
+    REQUIRE(a2 == tree.GetLightestNode());
+    tree.RemoveNode(a2);
+    REQUIRE(tree.GetLightestNode() == b1);
+    tree.RemoveNode(b1);
+    REQUIRE(c2 == tree.GetLightestNode());
+    tree.RemoveNode(c2);
+    REQUIRE(c1 == tree.GetLightestNode());
+    tree.RemoveNode(c1);
+    REQUIRE(!tree.IsNonEmpty());
+}

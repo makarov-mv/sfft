@@ -80,6 +80,7 @@ public:
         }
         if (!current) {
             root_.reset();
+            return;
         }
         if (current->left.get() == son) {
             current->left.reset();
