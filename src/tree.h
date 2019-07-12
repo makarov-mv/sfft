@@ -70,12 +70,23 @@ public:
         return getLightest(root_);
     }
 
-    bool RemoveNode(const NodePtr& node) {
+    void RemoveNode(const NodePtr& node) {
         Node* current = node.get();
         while (current && !current->HasBothChild()) {
             current = current->parent;
         }
-        return current != nullptr;
+        if (!current) {
+            root_ = nullptr;
+        }
+        if (current->left->parent == current) {
+            current->left = nullptr;
+        } else {
+            current->right = nullptr;
+        }
+    }
+
+    bool IsNonEmpty() const {
+        return root_ != nullptr;
     }
 
 private:
