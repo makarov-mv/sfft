@@ -1,5 +1,9 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
+#include <unordered_set>
+#include <random>
+#include <algorithm>
+#include <set>
 
 #include "disfft.h"
 
@@ -139,7 +143,7 @@ TEST_CASE("Tree test remove") {
     REQUIRE(b->right == nullptr);
 
     tree.RemoveNode(b);
-    REQUIRE(!tree.IsNonEmpty());
+    REQUIRE(tree.IsEmpty());
     REQUIRE(tree.GetRoot() == nullptr);
 }
 
@@ -174,5 +178,53 @@ TEST_CASE("Tree get lightest 2") {
     tree.RemoveNode(c2);
     REQUIRE(c1 == tree.GetLightestNode());
     tree.RemoveNode(c1);
-    REQUIRE(!tree.IsNonEmpty());
+    REQUIRE(tree.IsEmpty());
+}
+
+std::pair<int, NodePtr> CustomGetLightest(NodePtr node) {
+    if (!node->left && !node->right) {
+        return {0, node};
+    }
+    std::vector<std::pair<int, NodePtr>> results;
+    for (auto& child : {node->right, node->left}) {
+        if (child) {
+            results.push_back(CustomGetLightest(child));
+        }
+    }
+    if (results.size() == 2) {
+        if (results[0].first == results[1].first) {
+            return {results[0].first + 1, results[0].second};
+        } else {
+            std::sort(results.begin(), results.end());
+            return {results[0].first + 1, results[0].second};
+        }
+    } else {
+        return *results.begin();
+    }
+}
+
+TEST_CASE("Huge tree test 1") {
+    auto tree = SplittingTree();
+    std::unordered_set<NodePtr> leafs;
+    leafs.insert(tree.GetRoot());
+    const int iterations_num = 1e3;
+    for (int i = 0; i < iterations_num; ++i) {
+        auto r = rand() % leafs.size();
+        auto it = leafs.begin();
+        std::advance(it, r);
+        auto random_leaf = *it;
+        leafs.erase(random_leaf);
+        auto res = random_leaf->AddChildren();
+        leafs.insert(res.first);
+        leafs.insert(res.second);
+    }
+    for (int i = 0; i < iterations_num + 1; ++i) {
+        auto node = tree.GetLightestNode();
+        int weight;
+        NodePtr custom_node;
+        std::tie(weight, custom_node) = CustomGetLightest(tree.GetRoot());
+        REQUIRE(node.get() == custom_node.get());
+        tree.RemoveNode(node);
+    }
+    REQUIRE(tree.IsEmpty());
 }

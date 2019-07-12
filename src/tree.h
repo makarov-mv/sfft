@@ -47,9 +47,8 @@ public:
             return left && right;
         }
 
-        void AddChildren() {
-            MakeLeft();
-            MakeRight();
+        std::pair<NodePtr, NodePtr> AddChildren() {
+            return {MakeLeft(), MakeRight()};
         }
 
 
