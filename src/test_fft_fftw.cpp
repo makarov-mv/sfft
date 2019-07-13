@@ -14,6 +14,7 @@ public:
         fftw_destroy_plan(plan_);
         fftw_free(in_);
         fftw_free(out_);
+        fftw_cleanup();
     }
 
     std::vector<complex_t> Run(const std::vector<complex_t>& x) {
@@ -43,44 +44,94 @@ private:
     fftw_plan plan_;
 };
 
+bool RunFFTWTest(const std::vector<complex_t>& out, int64_t signal_size, int64_t sparsity) {
+    assert(signal_size = static_cast<int64_t>(out.size()));
+    auto runner = FFTWRunner(signal_size, FFTW_BACKWARD);
+    auto in = runner.Run(out);
+    auto x = DataSignal(signal_size, in.data());
+    auto result = GetSignalFromMap(SparseFFT(x, signal_size, sparsity), signal_size);
+    return std::equal(out.begin(), out.end(), result.begin(), CheckEqual);
+}
+
 
 TEST_CASE("FFT 4") {
     const int64_t signal_size = 4;
-    auto runner = FFTWRunner(signal_size, FFTW_BACKWARD);
-    std::vector<complex_t> in, out(signal_size);
+    const int64_t sparsity = 2;
+    std::vector<complex_t> out(signal_size);
     out[0] = 1;
     out[2] = 1;
-    in = runner.Run(out);
-    auto x = DataSignal(signal_size, in.data());
-    auto res = GetSignalFromMap(SparseFFT(x, signal_size, 2), signal_size);
-    REQUIRE(std::equal(out.begin(), out.end(), res.begin(), CheckEqual));
+    REQUIRE(RunFFTWTest(out, signal_size, sparsity));
 }
 
 TEST_CASE("FFT 32") {
     const int64_t signal_size = 32;
-    auto runner = FFTWRunner(signal_size, FFTW_BACKWARD);
-    std::vector<complex_t> in, out(signal_size);
+    const int64_t sparsity = 4;
+    std::vector<complex_t> out(signal_size);
     out[0] = 1;
     out[2] = 1;
     out[9] = 93;
     out[24] = complex_t{1, -0.6};
-    in = runner.Run(out);
-    auto x = DataSignal(signal_size, in.data());
-    auto res = GetSignalFromMap(SparseFFT(x, signal_size, 4), signal_size);
-    REQUIRE(std::equal(out.begin(), out.end(), res.begin(), CheckEqual));
+    REQUIRE(RunFFTWTest(out, signal_size, sparsity));
 }
 
 TEST_CASE("FFT stress 128 16") {
     const int64_t signal_size = 128;
-    const int64_t sparsity = 16;
-    auto runner = FFTWRunner(signal_size, FFTW_BACKWARD);
-    std::vector<complex_t> in, out(signal_size);
+    std::vector<complex_t> out(signal_size);
     out[0] = 1;
     out[2] = 1;
     out[9] = 93;
     out[24] = complex_t{1, -0.6};
-    in = runner.Run(out);
-    auto x = DataSignal(signal_size, in.data());
-    auto res = GetSignalFromMap(SparseFFT(x, signal_size, 4), signal_size);
-    REQUIRE(std::equal(out.begin(), out.end(), res.begin(), CheckEqual));
+    REQUIRE(RunFFTWTest(out, signal_size, 16));
 }
+
+TEST_CASE("FFT 128 arithmetic") {
+    const int64_t signal_size = 128;
+    std::vector<complex_t> out(signal_size);
+    for (int i = 0; i < signal_size; i += 2) {
+        out[i] = (i + 1.) + (3. * i - 1.) * 1.i;
+    }
+    REQUIRE(RunFFTWTest(out, signal_size, 64));
+}
+
+TEST_CASE("FFT 1024 arithmetic") {
+    const int64_t signal_size = 1024;
+    std::vector<complex_t> out(signal_size);
+    for (int i = 0; i < signal_size; i += 2) {
+        out[i] = (i + 1.) + (3. * i - 1.) * 1.i;
+    }
+    REQUIRE(RunFFTWTest(out, signal_size, 512));
+}
+
+TEST_CASE("FFT 1024 * 1024 sparse arithmetic") {
+    const int64_t signal_size = 1024 * 1024;
+    const int64_t sparsity = 16;
+    std::vector<complex_t> out(signal_size);
+    for (int i = 0; i < signal_size; i += signal_size / sparsity) {
+        out[i] = (i + 1.) + (3. * i - 1.) * 1.i;
+    }
+    REQUIRE(RunFFTWTest(out, signal_size, sparsity));
+} // 1e7
+
+TEST_CASE("FFT 1000 sparse arithmetic") {
+    const int64_t signal_size = 1000;
+    const int64_t sparsity = 20;
+    std::vector<complex_t> out(signal_size);
+    for (int i = 0; i < signal_size; i += signal_size / sparsity) {
+        int id = i % 3;
+        out[i] = (id + 1.) + (3. * id - 1.) * 1.i;
+    }
+    REQUIRE(RunFFTWTest(out, signal_size, sparsity));
+} // not working
+
+TEST_CASE("FFT 1000 sparse random") {
+    const int64_t signal_size = 1000;
+    const int64_t sparsity = 20;
+    std::vector<complex_t> out(signal_size);
+
+    for (int i = 0; i < signal_size; i += signal_size / sparsity) {
+        size_t j = random() % signal_size;
+        int id = i % 3;
+        out[j] = (id + 1.) + (3. * id - 1.) * 1.i;
+    }
+    REQUIRE(RunFFTWTest(out, signal_size, sparsity));
+} // not working

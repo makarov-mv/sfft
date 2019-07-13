@@ -37,7 +37,7 @@ public:
         }
     }
 
-    complex_t FilterValueAtTime(int64_t time) {
+    complex_t FilterValueAtTime(int64_t time) const {
         auto it = filter_.find(time);
         if (it != filter_.end()) {
             return it->second;
