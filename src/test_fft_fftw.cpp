@@ -102,9 +102,9 @@ TEST_CASE("FFT 1024 * 1024 sparse arithmetic") {
     REQUIRE(RunFFTWTest(out, signal_size, sparsity));
 } // 1e7
 
-TEST_CASE("FFT 1000 sparse arithmetic") {
+TEST_CASE("FFT 1024 sparse arithmetic") {
     const int64_t signal_size = 1024;
-    const int64_t sparsity = 16;
+    const int64_t sparsity = 32;
     std::vector<complex_t> out(signal_size);
     for (int i = 0; i < signal_size; i += signal_size / sparsity) {
         int id = i % 3;
@@ -113,9 +113,9 @@ TEST_CASE("FFT 1000 sparse arithmetic") {
     REQUIRE(RunFFTWTest(out, signal_size, sparsity));
 }
 
-TEST_CASE("FFT 1000 sparse random") {
+TEST_CASE("FFT 1024 sparse random") {
     const int64_t signal_size = 1024;
-    const int64_t sparsity = 16;
+    const int64_t sparsity = 32;
     std::vector<complex_t> out(signal_size);
 
     for (int i = 0; i < signal_size; i += signal_size / sparsity) {
