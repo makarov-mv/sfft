@@ -52,13 +52,15 @@ public:
         }
 
 
-        std::vector<bool> GetRootPathMask() const {
-            std::vector<bool> mask;
+        std::vector<int> GetRootPath() const {
+            std::vector<int> path;
             for (auto node = this; node != nullptr; node = node->parent) {
-                mask.push_back(node->HasBothChild());
+                if (node->HasBothChild()) {
+                    path.push_back(node->level);
+                }
             }
-            std::reverse(mask.begin(), mask.end());
-            return mask;
+            std::reverse(path.begin(), path.end());
+            return path;
         }
     };
 
@@ -81,10 +83,22 @@ public:
             root_.reset();
             return;
         }
+        NodePtr other_son;
         if (current->left.get() == son) {
             current->left.reset();
+            other_son = current->right;
         } else {
             current->right.reset();
+            other_son = current->left;
+        }
+        if (current != root_.get()) {
+            auto parent = current->parent;
+            other_son->parent = parent;
+            if (parent->left.get() == current) {
+                parent->left = other_son;
+            } else {
+                parent->right = other_son;
+            }
         }
     }
 
@@ -109,10 +123,9 @@ private:
                 return {lightest, std::min(weight, right_weight) + 1};
             } else {
                 std::tie(lightest, weight) = getLightest(node->right);
-                return {lightest, weight};
             }
         }
-        return {lightest, weight};
+        return {lightest, weight + node->HasBothChild()};
     }
 
     NodePtr root_;

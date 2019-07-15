@@ -224,7 +224,7 @@ TEST_CASE("Huge tree test 1") {
         auto it = leafs.begin();
         std::advance(it, r);
         auto random_leaf = *it;
-        leafs.erase(random_leaf);
+        leafs.erase(it);
         auto res = random_leaf->AddChildren();
         leafs.insert(res.first);
         leafs.insert(res.second);

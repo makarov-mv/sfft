@@ -11,29 +11,22 @@ public:
     using NodePtr = SplittingTree::NodePtr;
 
     Filter(const NodePtr& node, int64_t size) {
-        std::vector<bool> path_mask = node->GetRootPathMask(); // optimize
-        phase_.resize(CalcLog(size), 0);
+        path_ = node->GetRootPath();
         auto label = node->label;
-
-        for (int i = 0; i + 1 < static_cast<int>(path_mask.size()); ++i) {
-            if (path_mask[i]) {
-                phase_[i] = CalcKernel(-label, 1 << (i + 1));
-            }
-        }
+        label_ = label;
 
         filter_[0] = 1;
-        for (int i = 0; i < static_cast<int>(phase_.size()); ++i) {
-            if (NonZero(phase_[i])) {
-                std::unordered_map<int64_t, complex_t> updated_filter;
-                int64_t shift = size >> (i + 1);
-                for (auto it : filter_) {
-                    int64_t index = it.first;
-                    updated_filter[index] = (FilterValueAtTime(index) + phase_[i] * FilterValueAtTime((index + shift) % size)) / 2.;
-                    updated_filter[(index + size - shift) % size] = (FilterValueAtTime((index + size - shift) % size) + phase_[i] * FilterValueAtTime(index)) / 2.;
-                }
-                filter_.swap(updated_filter);
-                updated_filter.clear();
+        for (int i = 0; i < static_cast<int>(path_.size()); ++i) {
+            std::unordered_map<int64_t, complex_t> updated_filter;
+            int64_t shift = size >> (path_[i] + 1);
+            auto phase = CalcKernel(-label, 1 << (path_[i] + 1));
+            for (auto it : filter_) {
+                int64_t index = it.first;
+                updated_filter[index] = (FilterValueAtTime(index) + phase * FilterValueAtTime((index + shift) % size)) / 2.;
+                updated_filter[(index + size - shift) % size] = (FilterValueAtTime((index + size - shift) % size) + phase * FilterValueAtTime(index)) / 2.;
             }
+            filter_.swap(updated_filter);
+            updated_filter.clear();
         }
     }
 
@@ -50,17 +43,24 @@ public:
     }
 
     complex_t FilterFrequency(int psi) const {
+        double g = PI * (psi - label_);
         complex_t freq =  1;
-        for (size_t i = 0; i < phase_.size(); ++i) {
-            if (NonZero(phase_[i])) {
-                freq *= (1. + phase_[i] * CalcKernel(psi, 1 << (i + 1))) / 2.;
+        int j = 0;
+        for (int level : path_) {
+            for (; j < level; ++j) {
+                g /= 2;
             }
+            freq *= CalcFrequencyFactor(g);
         }
         return freq;
     }
 
 private:
+    complex_t CalcFrequencyFactor(double g) const {
+        return {(1 + cos(g)) / 2, sin(g) / 2};
+    }
 
-    std::vector<complex_t> phase_;
+    int64_t label_;
+    std::vector<int> path_;
     std::unordered_map<int64_t, complex_t> filter_;
 };
