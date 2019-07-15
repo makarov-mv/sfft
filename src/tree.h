@@ -6,6 +6,7 @@
 #include "algorithm"
 #include "arithmetics.h"
 #include "tuple"
+#include "iostream"
 
 class SplittingTree {
 public:
@@ -131,3 +132,23 @@ private:
     NodePtr root_;
 };
 
+void PrintNodeAsDot(const SplittingTree::NodePtr& node) {
+    if (!node) {
+        return;
+    }
+    std::cout << "n" << node.get() << "[label=\"level: " << node->level << "\nlabel: " << node->label << "\"];\n";
+    if (node->left) {
+        std::cout << "n" << node.get() << " -> n" << node->left.get() <<";\n";
+    }
+    if (node->right) {
+        std::cout << "n" << node.get() << " -> n" << node->right.get() <<";\n";
+    }
+    PrintNodeAsDot(node->left);
+    PrintNodeAsDot(node->right);
+}
+
+void PrintTreeAsDot(const SplittingTree& tree, const std::string& name) {
+    std::cout << "digraph " << name << " {\n";
+    PrintNodeAsDot(tree.GetRoot());
+    std::cout << "}\n\n";
+}

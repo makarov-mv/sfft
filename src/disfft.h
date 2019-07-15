@@ -50,11 +50,16 @@ private:
 bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const SplittingTree::NodePtr& cone_node, int64_t signal_size, int64_t sparsity, IndexGenerator& delta) {
     auto filter = Filter(cone_node, signal_size);
     int64_t max_iters = std::max<int64_t>(llround(2 * sparsity * log2(sparsity) * log2(sparsity) * log2(signal_size)), 2);
+    std::vector<std::pair<int64_t, complex_t>> frequncy_values;
+    frequncy_values.reserve(recovered_freq.size());
+    for (auto freq: recovered_freq) {
+        frequncy_values.emplace_back(freq.first, freq.second * filter.FilterFrequency(freq.first) / complex_t(signal_size, 0));
+    }
     for (int64_t i = 0; i < max_iters; ++i) {
         auto time = delta.Next();
         complex_t recovered_at_time = 0;
-        for (auto freq: recovered_freq) {
-            recovered_at_time += CalcKernel(freq.first * time, signal_size) * freq.second * filter.FilterFrequency(freq.first) / complex_t(signal_size, 0);
+        for (auto freq: frequncy_values) {
+            recovered_at_time += CalcKernel(freq.first * time, signal_size) * freq.second;
         }
         complex_t filtered_at_time = 0;
         for (auto value: filter.FilterTime()) {
@@ -72,7 +77,6 @@ FrequencyMap SparseFFT(const Signal& x, int64_t signal_size, int64_t sparsity) {
     SplittingTree tree{};
     FrequencyMap recovered_freq;
     IndexGenerator delta{signal_size, 61};
-
     while (!tree.IsEmpty()) {
         NodePtr node = tree.GetLightestNode();
         if (node->level == CalcLog(signal_size)) {
