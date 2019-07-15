@@ -120,7 +120,7 @@ TEST_CASE("FFT 1024 sparse random") {
 
     for (int i = 0; i < signal_size; i += signal_size / sparsity) {
         size_t j = random() % signal_size;
-        int id = i % 3;
+        int id = i % 9;
         out[j] = (id + 1.) + (3. * id - 1.) * 1.i;
     }
     REQUIRE(RunFFTWTest(out, signal_size, sparsity));
