@@ -63,10 +63,10 @@ inline void hash_combine(size_t& s, const T& value) {
 // TODO rewrite with initializer_list if needed
 
 namespace std {
-    template<T>
-    struct hash<std::initializer_list<T>>
+    template<typename T>
+    struct hash<std::vector<T>>
     {
-        size_t operator()(const std::initializer_list<T>& key) const {
+        size_t operator()(const std::vector<T>& key) const {
             size_t result = 0;
             for (auto i : key) {
                 hash_combine(result, i);
@@ -77,18 +77,19 @@ namespace std {
 }
 
 namespace std {
-    template<class T>
-    struct equal_to<std::initializer_list<T>>
+    template<typename T, size_t N>
+    struct equal_to<std::vector<T>>
     {
-        bool operator()(const std::initializer_list<T>& l, const std::initializer_list<T>& r) const {
-            auto hash = std::hash<std::initializer_list<T>>();
+        bool operator()(const std::vector<T>& l, const std::vector<T>& r) const {
+            auto hash = std::hash<std::vector<T>>();
             return hash(l) == hash(r);
         }
     };
 }
 
 
-using Key = std::initializer_list<int64_t>;
+using Key = std::vector<int64_t>;
+using FastKey = std::initializer_list<int16_t>;
 using FrequencyMap = std::unordered_map<Key, complex_t>;
 using NodePtr = SplittingTree::NodePtr;
 using Node = SplittingTree::Node;
@@ -129,7 +130,11 @@ public:
 
     //how not to copy
     Key Next() {
-        return index_gen_(rand_gen_);
+        Key result(dimension_);
+        for (int16_t i = 0; i < dimension_; ++i) {
+            result[i] = index_gen_(rand_gen_);
+        }
+        return result;
     }
 
 private:
@@ -138,14 +143,20 @@ private:
     int16_t dimension_;
 };
 
-bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const SplittingTree::NodePtr& cone_node, int64_t signal_size, int64_t sparsity, IndexGenerator& delta) {
-    auto filter = Filter(cone_node, signal_size);
-    int64_t max_iters = std::max<int64_t>(llround(2 * sparsity * log2(sparsity) * log2(sparsity) * log2(signal_size)), 2);
+//filter.FilterFrequency(const Key& key)
+//operator- for Key
+//value at time by modulo signal_size
+//filter.FilterTime() consists of all no zero freq
+
+bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const SplittingTree::NodePtr& cone_node, int64_t signal_size, int64_t sparsity, int16_t dimension, IndexGenerator& delta) {
+    auto filter = Filter(cone_node, signal_size, dimension);
+    int64_t max_iters = 100;//std::max<int64_t>(llround(2 * sparsity * log2(sparsity) * log2(sparsity) * log2(signal_size)), 2);
     for (int64_t i = 0; i < max_iters; ++i) {
         auto time = delta.Next();
         complex_t recovered_at_time = 0;
         for (auto freq: recovered_freq) {
-            recovered_at_time += CalcKernel(freq.first * time, signal_size) * freq.second * filter.FilterFrequency(freq.first) / complex_t(signal_size, 0);
+            auto dot = freq.first * time;
+            recovered_at_time += CalcKernel(dot, signal_size) * freq.second * filter.FilterFrequency(freq.first) / complex_t(signal_size ^ dimension, 0);
         }
         complex_t filtered_at_time = 0;
         for (auto value: filter.FilterTime()) {
