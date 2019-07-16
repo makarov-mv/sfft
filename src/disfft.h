@@ -22,10 +22,18 @@ public:
 
     int64_t SignalSize() const {
         int64_t res = 1;
-        for (int i = 0; i < dimensions_; ++i) {
-            res *= signal_width_;
+        int exp = dimensions_;
+        int64_t base = signal_width_;
+        for (;;) {
+            if (exp & 1) {
+                res *= base;
+            }
+            exp >>= 1;
+            if (!exp) {
+                return res;
+            }
+            base *= base;
         }
-        return res;
     }
 
     bool operator==(const SignalInfo& other) const {
@@ -37,8 +45,6 @@ private:
     int64_t signal_width_;
 };
 
-// можно вообще не хранить индексы и хранить только хеш
-// нет нельзя
 
 class Key {
 public:
@@ -49,12 +55,17 @@ public:
         assert(info.Dimensions() == static_cast<int>(indices_.size()));
     }
 
+    explicit Key(const SignalInfo& info, const std::initializer_list<int64_t>& key) : info(info_), indices_(info.Dimensions(), 0) {
+        assert(info.Dimensions() == static_cast<int>(indices_.size()));
+        std::copy(key.begin(), key.end(), indices_.begin());
+    }
+
     explicit Key(const SignalInfo& info, int64_t flatten) : info_(info), indices_(info.Dimensions(), 0) {
         assert(info.Dimensions() == static_cast<int>(indices_.size()));
         SetFromFlatten(flatten);
     }
 
-    int64_t Projection(int index) const {
+    int64_t& operator[](int index) {
         return indices_[index];
     }
 
@@ -136,7 +147,7 @@ public:
     }
 
     Key Next() {
-        Key result(info_, index_gen_(rand_gen_));
+        return {info_, index_gen_(rand_gen_)};
     }
 
 private:
@@ -151,7 +162,7 @@ private:
 //filter.FilterTime() consists of all no zero freq
 
 bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const SplittingTree::NodePtr& cone_node, const SignalInfo& info, int64_t sparsity, IndexGenerator& delta) {
-    auto filter = Filter(cone_node, signal_size, dimension);
+    auto filter = Filter(cone_node, info.SignalWidth(), info.Dimensions());
     int64_t max_iters = 100;//std::max<int64_t>(llround(2 * sparsity * log2(sparsity) * log2(sparsity) * log2(signal_size)), 2);
     for (int64_t i = 0; i < max_iters; ++i) {
         auto time = delta.Next();
