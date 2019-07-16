@@ -7,89 +7,100 @@
 #include "random"
 #include <array>
 
+class SignalInfo {
+public:
+    SignalInfo(int dimensions, int64_t signal_width): dimensions_(dimensions), signal_width_(signal_width) {
+    }
+
+    int Dimensions() const {
+        return dimensions_;
+    }
+
+    int64_t SignalWidth() const {
+        return signal_width_;
+    }
+
+    int64_t SignalSize() const {
+        int64_t res = 1;
+        for (int i = 0; i < dimensions_; ++i) {
+            res *= signal_width_;
+        }
+        return res;
+    }
+
+    bool operator==(const SignalInfo& other) const {
+        return dimensions_ == other.dimensions_ && signal_width_ == other.signal_width_;
+    }
+
+private:
+    int dimensions_;
+    int64_t signal_width_;
+};
+
 // можно вообще не хранить индексы и хранить только хеш
+// нет нельзя
 
-//struct Key {
-//    Key(int16_t dimension) : dimension_(dimension) {
-//        indices_ = malloc(dimension_ * sizeof(int64_t));
-//    }
-//
-//    Key(const std::vector<int64_t>& key) : dimension_(key.size()){
-//        indices_ = malloc(dimension_ * sizeof(int64_t));
-//        memcpy(indices_, key.data(), dimension_ * sizeof(int64_t));
-//    }
-//
-//    Key(const std::initializer_list<int64_t>& key) = 0;
-//
-//    ~Key() {
-//        free(indices_);
-//    }
-//
-//    int64_t& operator[] (int16_t index) {
-//        return indices_[index];
-//    }
-//
-//    int16_t size() const {
-//        return dimension_;
-//    }
-//
-//
-//    int16_t dimension_;
-//    int64_t* indices_;
-//}; // do not delete
+class Key {
+public:
+    explicit Key(const SignalInfo& info) : info_(info), indices_(info.Dimensions(), 0) {
+    }
 
-template <class T>
-inline void hash_combine(size_t& s, const T& value) {
-    std::hash<T> hash;
-    s ^= hash(value) + 0x9e3779b9 + (s << 6) + (s >> 2);
-}
+    explicit Key(const SignalInfo& info, std::vector<int64_t> key) : info_(info), indices_(std::move(key)) {
+        assert(info.Dimensions() == static_cast<int>(indices_.size()));
+    }
 
-//namespace std {
-//    template<>
-//    struct hash<Key>
-//    {
-//        size_t operator()(const Key& key) const {
-//            size_t result = 0;
-//            for (int16_t i = 0; i < key.size(); ++i) {
-//                hash_combine(result, key[i]);
-//            }
-//            return result;
-//        }
-//    };
-//} // do not delete
+    explicit Key(const SignalInfo& info, int64_t flatten) : info_(info), indices_(info.Dimensions(), 0) {
+        assert(info.Dimensions() == static_cast<int>(indices_.size()));
+        SetFromFlatten(flatten);
+    }
 
+    int64_t Projection(int index) const {
+        return indices_[index];
+    }
 
-// I have tried to use initializer_list, but there is no random access operators in it
-// TODO rewrite with initializer_list if needed
+    int64_t Flatten() const {
+        int64_t res = 0;
+        for (auto ind : indices_) {
+            res = res * info_.SignalWidth() + ind;
+        }
+        return res;
+    }
+
+    bool operator==(const Key& other) const {
+        assert(info_ == other.info_);
+        return indices_ == other.indices_;
+    }
+
+    SignalInfo SignalInfo() const {
+        return info_;
+    }
+
+private:
+    void SetFromFlatten(int64_t flat) {
+        for (int i = 0; i < info_.Dimensions(); ++i) {
+            indices_[i] = flat % info_.SignalWidth();
+            flat /= info_.SignalWidth();
+        }
+        std::reverse(indices_.begin(), indices_.end());
+    }
+
+    SignalInfo info_;
+    std::vector<int64_t> indices_;
+};
 
 namespace std {
-    template<typename T>
-    struct hash<std::vector<T>>
-    {
-        size_t operator()(const std::vector<T>& key) const {
-            size_t result = 0;
-            for (auto i : key) {
-                hash_combine(result, i);
-            }
-            return result;
+    template<>
+    struct hash<Key> {
+    public:
+        std::size_t operator()(const Key& key) const {
+            return hasher_(key.Flatten());
         }
+
+    private:
+        std::hash<int64_t> hasher_;
     };
 }
 
-namespace std {
-    template<typename T, size_t N>
-    struct equal_to<std::vector<T>>
-    {
-        bool operator()(const std::vector<T>& l, const std::vector<T>& r) const {
-            auto hash = std::hash<std::vector<T>>();
-            return hash(l) == hash(r);
-        }
-    };
-}
-
-
-using Key = std::vector<int64_t>;
-using FastKey = std::initializer_list<int16_t>;
 using FrequencyMap = std::unordered_map<Key, complex_t>;
 using NodePtr = SplittingTree::NodePtr;
 using Node = SplittingTree::Node;
@@ -101,46 +112,37 @@ public:
     virtual complex_t ValueAtTime(const Key& key) const = 0;
 };
 
-//TODO rewrite with some suitable tensor library
-
-
-// Зачем нужна эта структура??
 class DataSignal: public Signal {
 public:
-    DataSignal(int64_t signal_size, int16_t dimension, FrequencyMap&& v):
-            signal_size_(signal_size),
-            dimension_(dimension),
+    DataSignal(const SignalInfo& info, FrequencyMap v):
+            info_(info),
             values_(std::move(v)) {
     }
 
     complex_t ValueAtTime(const Key& key) const override {
+        assert(key.SignalInfo() == info_);
         return values_[key];
     }
 
 private:
-    const int64_t signal_size_;
-    const int16_t dimension_;
+    const SignalInfo info_;
     FrequencyMap values_;
 };
 
 class IndexGenerator {
 public:
-    IndexGenerator(int64_t signal_size, int16_t dimension, int64_t seed): rand_gen_(seed), index_gen_(0, signal_size), dimension_(dimension) {
+    IndexGenerator(const SignalInfo& info, int64_t seed):
+        info_(info), rand_gen_(seed), index_gen_(0, info.SignalSize()) {
     }
 
-    //how not to copy
     Key Next() {
-        Key result(dimension_);
-        for (int16_t i = 0; i < dimension_; ++i) {
-            result[i] = index_gen_(rand_gen_);
-        }
-        return result;
+        Key result(info_, index_gen_(rand_gen_));
     }
 
 private:
+    SignalInfo info_;
     std::mt19937_64 rand_gen_;
     std::uniform_int_distribution<int64_t> index_gen_;
-    int16_t dimension_;
 };
 
 //filter.FilterFrequency(const Key& key)
@@ -148,7 +150,7 @@ private:
 //value at time by modulo signal_size
 //filter.FilterTime() consists of all no zero freq
 
-bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const SplittingTree::NodePtr& cone_node, int64_t signal_size, int64_t sparsity, int16_t dimension, IndexGenerator& delta) {
+bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const SplittingTree::NodePtr& cone_node, const SignalInfo& info, int64_t sparsity, IndexGenerator& delta) {
     auto filter = Filter(cone_node, signal_size, dimension);
     int64_t max_iters = 100;//std::max<int64_t>(llround(2 * sparsity * log2(sparsity) * log2(sparsity) * log2(signal_size)), 2);
     for (int64_t i = 0; i < max_iters; ++i) {
