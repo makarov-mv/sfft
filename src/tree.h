@@ -6,6 +6,7 @@
 #include "algorithm"
 #include "arithmetics.h"
 #include "tuple"
+#include "iostream"
 
 class SplittingTree {
 public:
@@ -52,13 +53,15 @@ public:
         }
 
 
-        std::vector<bool> GetRootPathMask() const {
-            std::vector<bool> mask;
+        std::vector<int> GetRootPath() const {
+            std::vector<int> path;
             for (auto node = this; node != nullptr; node = node->parent) {
-                mask.push_back(node->HasBothChild());
+                if (node->HasBothChild()) {
+                    path.push_back(node->level);
+                }
             }
-            std::reverse(mask.begin(), mask.end());
-            return mask;
+            std::reverse(path.begin(), path.end());
+            return path;
         }
     };
 
@@ -81,10 +84,22 @@ public:
             root_.reset();
             return;
         }
+        NodePtr other_son;
         if (current->left.get() == son) {
             current->left.reset();
+            other_son = current->right;
         } else {
             current->right.reset();
+            other_son = current->left;
+        }
+        if (current != root_.get()) {
+            auto parent = current->parent;
+            other_son->parent = parent;
+            if (parent->left.get() == current) {
+                parent->left = other_son;
+            } else {
+                parent->right = other_son;
+            }
         }
     }
 
@@ -109,12 +124,31 @@ private:
                 return {lightest, std::min(weight, right_weight) + 1};
             } else {
                 std::tie(lightest, weight) = getLightest(node->right);
-                return {lightest, weight};
             }
         }
-        return {lightest, weight};
+        return {lightest, weight + node->HasBothChild()};
     }
 
     NodePtr root_;
 };
 
+void PrintNodeAsDot(const SplittingTree::NodePtr& node) {
+    if (!node) {
+        return;
+    }
+    std::cout << "n" << node.get() << "[label=\"level: " << node->level << "\nlabel: " << node->label << "\"];\n";
+    if (node->left) {
+        std::cout << "n" << node.get() << " -> n" << node->left.get() <<";\n";
+    }
+    if (node->right) {
+        std::cout << "n" << node.get() << " -> n" << node->right.get() <<";\n";
+    }
+    PrintNodeAsDot(node->left);
+    PrintNodeAsDot(node->right);
+}
+
+void PrintTreeAsDot(const SplittingTree& tree, const std::string& name) {
+    std::cout << "digraph " << name << " {\n";
+    PrintNodeAsDot(tree.GetRoot());
+    std::cout << "}\n\n";
+}

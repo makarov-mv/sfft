@@ -52,7 +52,7 @@ public:
         assert(info.Dimensions() == static_cast<int>(indices_.size()));
     }
 
-    explicit Key(const SignalInfo& info, const std::initializer_list<int64_t>& key) : info(info_), indices_(info.Dimensions(), 0) {
+    explicit Key(const SignalInfo& info, const std::initializer_list<int64_t>& key) : info_(info), indices_(info.Dimensions(), 0) {
         assert(info.Dimensions() == static_cast<int>(indices_.size()));
         std::copy(key.begin(), key.end(), indices_.begin());
     }
@@ -79,8 +79,15 @@ public:
         return indices_ == other.indices_;
     }
 
-    SignalInfo SignalInfo() const {
+    SignalInfo GetSignalInfo() const {
         return info_;
+    }
+
+    const Key IncreaseAt(int index, int64_t value) const {
+        std::vector<int64_t> new_indices(indices_);
+        new_indices[index] += value + info_.SignalWidth();
+        new_indices[index] %= info_.SignalWidth();
+        return {info_, std::move(new_indices)};
     }
 
     const Key operator-(const Key& key) const {
@@ -88,15 +95,15 @@ public:
         for (size_t i = 0; i < info_.Dimensions(); ++i) {
             new_indices[i] = (indices_[i] - key[i] + info_.SignalWidth()) % info_.SignalWidth();
         }
-        return {info, std::move(new_indices)};
+        return {info_, std::move(new_indices)};
     }
 
-    const Ket operator-() const {
+    const Key operator-() const {
         std::vector<int64_t> new_indices(info_.Dimensions());
         for (size_t i = 0; i < info_.Dimensions(); ++i) {
             new_indices[i] = (-indices_[i] + info_.SignalWidth()) % info_.SignalWidth();
         }
-        return {info, std::move(new_indices)};
+        return {info_, std::move(new_indices)};
     }
 
     double operator*(const Key& key) const {
@@ -142,38 +149,24 @@ class Filter {
 public:
 
     Filter(const NodePtr& node, const SignalInfo& info) {
-        std::vector<bool> path_mask = node->GetRootPathMask(); // optimize
-        phase_.resize(CalcLog(size), 0);
-        auto label = node->label;
-
-        for (int i = 0; i + 1 < static_cast<int>(path_mask.size()); ++i) {
-            if (path_mask[i]) {
-                phase_[i] = CalcKernel(-label, 1 << (i + 1));
+        path_ = std::move(node->GetRootPath()); //
+        int period_size = CalcLog(info.SignalSize()); //
+        label_ = Key(info, node->label); //
+        filter_[Key(info, 0)] = 1; //
+        for (int i = 0; i < static_cast<int>(path_.size()); ++i) {
+            std::unordered_map<Key, complex_t> updated_filter; //
+            int current_period = path_[i] / period_size; //
+            int64_t shift = info.SignalWidth() >> (path_[i] - current_period * period_size + 1); //
+            auto phase = CalcKernel(-label_[current_period], 1 << (path_[i] - current_period * period_size + 1)); //
+            phase_.push_back(phase);
+            for (auto it : filter_) {
+                Key index = it.first; //
+                updated_filter[index] = (FilterValueAtTime(index) + phase * FilterValueAtTime(index.IncreaseAt(current_period, shift))) / 2.; //
+                updated_filter[index.IncreaseAt(current_period, -shift)] = (FilterValueAtTime(index.IncreaseAt(current_period, -shift)) + phase * FilterValueAtTime(index)) / 2.; //
             }
+            filter_.swap(updated_filter);
+            updated_filter.clear();
         }
-
-        filter_[0] = 1;
-        for (int i = 0; i < static_cast<int>(phase_.size()); ++i) {
-            if (NonZero(phase_[i])) {
-                std::unordered_map<int64_t, complex_t> updated_filter;
-                int64_t shift = size >> (i + 1);
-                for (auto it : filter_) {
-                    int64_t index = it.first;
-                    updated_filter[index] = (FilterValueAtTime(index) + phase_[i] * FilterValueAtTime((index + shift) % size)) / 2.;
-                    updated_filter[(index + size - shift) % size] = (FilterValueAtTime((index + size - shift) % size) + phase_[i] * FilterValueAtTime(index)) / 2.;
-                }
-                filter_.swap(updated_filter);
-                updated_filter.clear();
-            }
-        }
-    }
-
-    complex_t FilterValueAtTime(int64_t time) const {
-        auto it = filter_.find(time);
-        if (it != filter_.end()) {
-            return it->second;
-        }
-        return 0.;
     }
 
     const std::unordered_map<Key, complex_t>& FilterTime() const {
@@ -181,17 +174,31 @@ public:
     }
 
     complex_t FilterFrequency(const Key& key) const {
-        complex_t freq =  1;
-        for (size_t i = 0; i < phase_.size(); ++i) {
-            if (NonZero(phase_[i])) {
-                freq *= (1. + phase_[i] * CalcKernel(psi, 1 << (i + 1))) / 2.;
-            }
+        int period_size = CalcLog(info.SignalSize());
+        complex_t freq = 1.;
+        for (int i = 0; i < path_.size(); ++i) {
+            int current_period = path_[i] / period_size;
+            freq *= (1. + phase_[i] * CalcKernel(key[current_period], 1 << (path_[i] - current_period * period_size + 1))) / 2.;
         }
         return freq;
     }
 
 private:
+    //std::forward
+    complex_t FilterValueAtTime(const Key& time) const {
+        auto it = filter_.find(time);
+        if (it != filter_.end()) {
+            return it->second;
+        }
+        return 0.;
+    }
 
+//    complex_t CalcFrequencyFactor(double g) const {
+//        return {(1 + cos(g)) / 2, sin(g) / 2};
+//    }
+
+    Key label_;
+    std::vector<int> path_;
     std::vector<complex_t> phase_;
     std::unordered_map<Key, complex_t> filter_;
 };
