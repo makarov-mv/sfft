@@ -62,7 +62,7 @@ public:
         SetFromFlatten(flatten);
     }
 
-    int64_t& operator[](int index) {
+    const int64_t& operator[](int index) const {
         return indices_[index];
     }
 
@@ -87,28 +87,28 @@ public:
         std::vector<int64_t> new_indices(indices_);
         new_indices[index] += value + info_.SignalWidth();
         new_indices[index] %= info_.SignalWidth();
-        return {info_, std::move(new_indices)};
+        return Key{info_, std::move(new_indices)};
     }
 
     const Key operator-(const Key& key) const {
         std::vector<int64_t> new_indices(info_.Dimensions());
-        for (size_t i = 0; i < info_.Dimensions(); ++i) {
+        for (int i = 0; i < info_.Dimensions(); ++i) {
             new_indices[i] = (indices_[i] - key[i] + info_.SignalWidth()) % info_.SignalWidth();
         }
-        return {info_, std::move(new_indices)};
+        return Key{info_, std::move(new_indices)};
     }
 
     const Key operator-() const {
         std::vector<int64_t> new_indices(info_.Dimensions());
-        for (size_t i = 0; i < info_.Dimensions(); ++i) {
+        for (int i = 0; i < info_.Dimensions(); ++i) {
             new_indices[i] = (-indices_[i] + info_.SignalWidth()) % info_.SignalWidth();
         }
-        return {info_, std::move(new_indices)};
+        return Key{info_, std::move(new_indices)};
     }
 
     double operator*(const Key& key) const {
         int64_t result = 0;
-        for (size_t i = 0; i < info_.Dimensions(); ++i) {
+        for (int i = 0; i < info_.Dimensions(); ++i) {
             result += key[i] * indices_[i];
         }
         return result;
@@ -148,10 +148,9 @@ using Node = SplittingTree::Node;
 class Filter {
 public:
 
-    Filter(const NodePtr& node, const SignalInfo& info) {
-        path_ = std::move(node->GetRootPath()); //
+    Filter(const NodePtr& node, const SignalInfo& info) : label_(info, node->label), info_(info) {
+        path_ = node->GetRootPath(); //
         int period_size = CalcLog(info.SignalSize()); //
-        label_ = Key(info, node->label); //
         filter_[Key(info, 0)] = 1; //
         for (int i = 0; i < static_cast<int>(path_.size()); ++i) {
             std::unordered_map<Key, complex_t> updated_filter; //
@@ -174,9 +173,9 @@ public:
     }
 
     complex_t FilterFrequency(const Key& key) const {
-        int period_size = CalcLog(info.SignalSize());
+        int period_size = CalcLog(info_.SignalSize());
         complex_t freq = 1.;
-        for (int i = 0; i < path_.size(); ++i) {
+        for (size_t i = 0; i < path_.size(); ++i) {
             int current_period = path_[i] / period_size;
             freq *= (1. + phase_[i] * CalcKernel(key[current_period], 1 << (path_[i] - current_period * period_size + 1))) / 2.;
         }
@@ -198,6 +197,7 @@ private:
 //    }
 
     Key label_;
+    SignalInfo info_;
     std::vector<int> path_;
     std::vector<complex_t> phase_;
     std::unordered_map<Key, complex_t> filter_;

@@ -21,8 +21,8 @@ public:
     }
 
     complex_t ValueAtTime(const Key& key) const override {
-        assert(key.SignalInfo() == info_);
-        return values_[key];
+        assert(key.GetSignalInfo() == info_);
+        return values_.at(key);
     }
 
 private:
@@ -37,7 +37,7 @@ public:
     }
 
     Key Next() {
-        return {info_, index_gen_(rand_gen_)};
+        return Key(info_, index_gen_(rand_gen_));
     }
 
 private:
