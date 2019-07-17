@@ -9,6 +9,12 @@ bool CheckEqual(complex_t a, complex_t b) {
     return !NonZero(a - b);
 }
 
+auto CheckEqualOperator(double eps) {
+    return [eps](complex_t a, complex_t b) {
+        return abs(a - b) < eps;
+    };
+}
+
 std::vector<complex_t> GetSignalFromMap(const FrequencyMap& recovered_freq, int64_t signal_size) {
     std::vector<complex_t> signal(signal_size);
     for (int64_t i = 0; i < signal_size; ++i) {

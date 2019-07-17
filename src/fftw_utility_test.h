@@ -1,5 +1,6 @@
 #include "utility_test.h"
 #include "fftw3.h"
+#include "catch.hpp"
 
 class FFTWRunner {
 public:
@@ -43,17 +44,29 @@ private:
     fftw_plan plan_;
 };
 
-bool TestSFFT(const std::vector<complex_t>& in, const std::vector<complex_t>& out, int64_t signal_size, int64_t sparsity) {
+template <class Equal>
+bool TestSFFT(const std::vector<complex_t>& in, const std::vector<complex_t>& out, int64_t signal_size, int64_t sparsity, Equal eq) {
     assert(signal_size = static_cast<int64_t>(out.size()));
     assert(signal_size = static_cast<int64_t>(in.size()));
     auto x = DataSignal(signal_size, in.data());
-    auto result = GetSignalFromMap(SparseFFT(x, signal_size, sparsity), signal_size);
-    return std::equal(out.begin(), out.end(), result.begin(), CheckEqual);
+    auto map = SparseFFT(x, signal_size, sparsity);
+    printf("%lu\n", map.size());
+    auto result = GetSignalFromMap(map, signal_size);
+    return std::equal(out.begin(), out.end(), result.begin(), eq);
 }
 
-bool RunFFTWTest(const std::vector<complex_t>& out, int64_t signal_size, int64_t sparsity) {
+template <class Equal>
+bool RunFFTWTest(const std::vector<complex_t>& out, int64_t signal_size, int64_t sparsity, Equal eq) {
     assert(signal_size = static_cast<int64_t>(out.size()));
     auto runner = FFTWRunner(signal_size, FFTW_BACKWARD);
     auto in = runner.Run(out);
-    return TestSFFT(in, out, signal_size, sparsity);
+    return TestSFFT(in, out, signal_size, sparsity, eq);
+}
+
+bool TestSFFT(const std::vector<complex_t>& in, const std::vector<complex_t>& out, int64_t signal_size, int64_t sparsity) {
+    return TestSFFT(in, out, signal_size, sparsity, CheckEqual);
+}
+
+bool RunFFTWTest(const std::vector<complex_t>& out, int64_t signal_size, int64_t sparsity) {
+    return RunFFTWTest(out, signal_size, sparsity, CheckEqual);
 }
