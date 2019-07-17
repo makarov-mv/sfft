@@ -6,7 +6,8 @@
 
 class SignalInfo {
 public:
-    SignalInfo(int dimensions, int64_t signal_width): dimensions_(dimensions), signal_width_(signal_width) {
+    SignalInfo(int dimensions, int64_t signal_width):
+        dimensions_(dimensions), signal_width_(signal_width), signal_size_(CalcSignalSize(dimensions, signal_width)) {
     }
 
     int Dimensions() const {
@@ -18,19 +19,7 @@ public:
     }
 
     int64_t SignalSize() const {
-        int64_t res = 1;
-        int exp = dimensions_;
-        int64_t base = signal_width_;
-        for (;;) {
-            if (exp & 1) {
-                res *= base;
-            }
-            exp >>= 1;
-            if (!exp) {
-                return res;
-            }
-            base *= base;
-        }
+        return signal_size_;
     }
 
     bool operator==(const SignalInfo& other) const {
@@ -38,8 +27,17 @@ public:
     }
 
 private:
+    static int64_t CalcSignalSize(int dimensions, int64_t signal_width) {
+        int64_t res = 1;
+        for (int i = 0; i < dimensions; ++i) {
+            res *= signal_width;
+        }
+        return res;
+    }
+
     int dimensions_;
     int64_t signal_width_;
+    int64_t signal_size_;
 };
 
 
@@ -182,7 +180,6 @@ public:
         return freq;
     }
 
-private:
     //std::forward
     complex_t FilterValueAtTime(const Key& time) const {
         auto it = filter_.find(time);
@@ -191,6 +188,8 @@ private:
         }
         return 0.;
     }
+
+private:
 
 //    complex_t CalcFrequencyFactor(double g) const {
 //        return {(1 + cos(g)) / 2, sin(g) / 2};

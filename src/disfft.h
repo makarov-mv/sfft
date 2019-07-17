@@ -15,19 +15,19 @@ public:
 
 class DataSignal: public Signal {
 public:
-    DataSignal(const SignalInfo& info, FrequencyMap v):
+    DataSignal(const SignalInfo& info, const complex_t* v):
             info_(info),
-            values_(std::move(v)) {
+            values_(v) {
     }
 
     complex_t ValueAtTime(const Key& key) const override {
         assert(key.GetSignalInfo() == info_);
-        return values_.at(key);
+        return values_[key.Flatten()];
     }
 
 private:
     const SignalInfo info_;
-    FrequencyMap values_;
+    const complex_t* values_;
 };
 
 class IndexGenerator {
