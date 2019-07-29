@@ -78,7 +78,7 @@ FrequencyMap SparseFFT(const Signal& x, const SignalInfo& info, int64_t sparsity
 
     while (!tree.IsEmpty()) {
         NodePtr node = tree.GetLightestNode();
-        if (node->level == info.Dimensions() * CalcLog(info.SignalSize())) {
+        if (node->level == info.Dimensions() * CalcLog(info.SignalWidth())) {
             auto filter = Filter(node, info);
             complex_t recovered = 0;
             for (const auto& freq : recovered_freq) {
