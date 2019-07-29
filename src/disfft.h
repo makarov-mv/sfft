@@ -51,7 +51,7 @@ private:
 
 bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const SplittingTree::NodePtr& cone_node, const SignalInfo& info, int64_t sparsity, IndexGenerator& delta) {
     auto filter = Filter(cone_node, info);
-    int64_t max_iters = std::max<int64_t>(llround(2 * sparsity * log2(sparsity) * log2(sparsity) * log2(info.SignalSize())), 2); // check
+    int64_t max_iters = std::max<int64_t>(llround(2 * sparsity * log2(info.SignalSize())), 2); // check
     for (int64_t i = 0; i < max_iters; ++i) {
         auto time = delta.Next();
         complex_t recovered_at_time = 0;

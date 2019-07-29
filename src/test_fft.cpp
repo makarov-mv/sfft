@@ -96,6 +96,28 @@ TEST_CASE("Filters frequency simple 5") {
     REQUIRE(CheckEqual(filter_b.FilterFrequency(Key{info, {1}}), 1.));
 }
 
+TEST_CASE("Filters frequency 2d 1") {
+    auto root = std::make_shared<Node>();
+    auto a1 = root->MakeLeft();
+    auto a2 = root->MakeRight();
+    auto b1 = a2->MakeLeft();
+    auto b2 = a2->MakeRight();
+    auto c1 = b2->MakeLeft();
+    auto c2 = b2->MakeRight();
+    auto d1 = c1->MakeLeft();
+    auto d2 = c1->MakeRight();
+
+    SignalInfo info(2, 4);
+
+    auto filter_d1 = Filter(d1, info);
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            int value = (i == 0) && (j == 3);
+            REQUIRE(CheckEqual(filter_d1.FilterFrequency(Key{info, {i, j}}), value));
+        }
+    }
+}
+
 TEST_CASE("Filters time simple 1") {
     auto root = std::make_shared<Node>();
     auto a = root->MakeLeft();

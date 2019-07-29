@@ -60,14 +60,16 @@ public:
         SetFromFlatten(flatten);
     }
 
+    // leftmost dimension is highest in the tree
     const int64_t& operator[](int index) const {
         return indices_[index];
     }
 
+    // in flattened form, least significant dimension is highest
     int64_t Flatten() const {
         int64_t res = 0;
-        for (auto ind : indices_) {
-            res = res * info_.SignalWidth() + ind;
+        for (auto it = indices_.rbegin(); it != indices_.rend(); ++it) {
+            res = res * info_.SignalWidth() + *it;
         }
         return res;
     }
@@ -118,7 +120,6 @@ private:
             indices_[i] = flat % info_.SignalWidth();
             flat /= info_.SignalWidth();
         }
-        std::reverse(indices_.begin(), indices_.end());
     }
 
     SignalInfo info_;
@@ -146,15 +147,15 @@ using Node = SplittingTree::Node;
 class Filter {
 public:
 
-    Filter(const NodePtr& node, const SignalInfo& info) : label_(info, node->label), info_(info) {
+    Filter(const NodePtr& node, const SignalInfo& info) : label_(info, node->label), info_(info), period_size_(CalcLog(info.SignalWidth())) {
         path_ = node->GetRootPath(); //
-        int period_size = CalcLog(info.SignalSize()); //
         filter_[Key(info, 0)] = 1; //
         for (int i = 0; i < static_cast<int>(path_.size()); ++i) {
             std::unordered_map<Key, complex_t> updated_filter; //
-            int current_period = path_[i] / period_size; //
-            int64_t shift = info.SignalWidth() >> (path_[i] - current_period * period_size + 1); //
-            auto phase = CalcKernel(-label_[current_period], 1 << (path_[i] - current_period * period_size + 1)); //
+            int current_period = CalcCurrentPeriod(i); //
+            int64_t subtree_level = CalcSubtreeLevel(i);
+            int64_t shift = info.SignalWidth() >> subtree_level; //
+            auto phase = CalcKernel(-label_[current_period], 1 << subtree_level); //
             phase_.push_back(phase);
             for (auto it : filter_) {
                 Key index = it.first; //
@@ -171,16 +172,14 @@ public:
     }
 
     complex_t FilterFrequency(const Key& key) const {
-        int period_size = CalcLog(info_.SignalSize());
         complex_t freq = 1.;
         for (size_t i = 0; i < path_.size(); ++i) {
-            int current_period = path_[i] / period_size;
-            freq *= (1. + phase_[i] * CalcKernel(key[current_period], 1 << (path_[i] - current_period * period_size + 1))) / 2.;
+            int current_period = CalcCurrentPeriod(i);
+            freq *= (1. + phase_[i] * CalcKernel(key[current_period], 1 << CalcSubtreeLevel(i))) / 2.;
         }
         return freq;
     }
 
-    //std::forward
     complex_t FilterValueAtTime(const Key& time) const {
         auto it = filter_.find(time);
         if (it != filter_.end()) {
@@ -189,14 +188,24 @@ public:
         return 0.;
     }
 
-private:
 
+private:
+    int CalcSubtreeLevel(int path_pos) const {
+        return path_[path_pos] - CalcCurrentPeriod(path_pos) * period_size_ + 1;
+    }
+
+    int CalcCurrentPeriod(int path_pos) const {
+        return path_[path_pos] / period_size_;
+    }
+
+// TODO: Calc frequencies faster
 //    complex_t CalcFrequencyFactor(double g) const {
 //        return {(1 + cos(g)) / 2, sin(g) / 2};
 //    }
 
     Key label_;
     SignalInfo info_;
+    int period_size_;
     std::vector<int> path_;
     std::vector<complex_t> phase_;
     std::unordered_map<Key, complex_t> filter_;
