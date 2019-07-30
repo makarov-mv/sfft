@@ -22,16 +22,23 @@ std::vector<complex_t> GetSignalFromMap(const FrequencyMap& recovered_freq, cons
     return signal;
 }
 
-bool RunSFFT(const SignalInfo& info, int64_t sparsity, const std::vector<complex_t>& data, const std::vector<complex_t>& desired, int rank = 1) {
+bool RunSFFT(const DataSignal& x, const SignalInfo& info, int64_t sparsity, const std::vector<complex_t>& desired, int rank = 1, int64_t seed = 61, TransformSettings settings = {}) {
+    assert(info.SignalSize() == static_cast<int64_t>(desired.size()));
+    assert(sparsity <= info.SignalSize());
+
+    FrequencyMap frequency = RecursiveSparseFFT(x, info, sparsity, rank, seed, settings);
+    auto result = GetSignalFromMap(frequency, info);
+
+    return std::equal(desired.begin(), desired.end(), result.begin(), CheckEqual);
+}
+
+bool RunSFFT(const SignalInfo& info, int64_t sparsity, const std::vector<complex_t>& data, const std::vector<complex_t>& desired, int rank = 1, int64_t seed = 61, TransformSettings settings = {}) {
     assert(info.SignalSize() == static_cast<int64_t>(data.size()));
     assert(info.SignalSize() == static_cast<int64_t>(desired.size()));
     assert(sparsity <= info.SignalSize());
     DataSignal x(info, data.data());
 
-    FrequencyMap frequency = RecursiveSparseFFT(x, info, sparsity, rank);
-    auto result = GetSignalFromMap(frequency, info);
-
-    return std::equal(desired.begin(), desired.end(), result.begin(), CheckEqual);
+    return RunSFFT(x, info, sparsity, desired, rank, seed, settings);
 }
 
 using namespace std::complex_literals;

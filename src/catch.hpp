@@ -5031,7 +5031,7 @@ namespace Catch {
         unsigned int rngSeed = 0;
 
         bool benchmarkNoAnalysis = false;
-        unsigned int benchmarkSamples = 100;
+        unsigned int benchmarkSamples = 10;
         double benchmarkConfidenceInterval = 0.95;
         unsigned int benchmarkResamples = 100000;
 
