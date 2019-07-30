@@ -7,3 +7,5 @@ SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wfloat-equal -Wfloat-con
 add_executable(test_fft src/test_main.cpp src/test_fft.cpp)
 add_executable(test_fft_fftw src/test_main.cpp src/test_fft_fftw.cpp)
 target_link_libraries(test_fft_fftw fftw3)
+add_executable(test_fft_fftw_rank src/test_main.cpp src/test_fft_fftw_rank.cpp)
+target_link_libraries(test_fft_fftw_rank fftw3)

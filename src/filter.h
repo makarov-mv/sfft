@@ -143,12 +143,18 @@ using FrequencyMap = std::unordered_map<Key, complex_t>;
 using NodePtr = SplittingTree::NodePtr;
 using Node = SplittingTree::Node;
 
+FrequencyMap MapUnion(const FrequencyMap& a, const FrequencyMap& b) {
+    FrequencyMap c;
+    c.insert(a.begin(), a.end());
+    c.insert(b.begin(), b.end());
+    return c;
+}
 
 class Filter {
 public:
 
-    Filter(const NodePtr& node, const SignalInfo& info) : label_(info, node->label), info_(info), period_size_(CalcLog(info.SignalWidth())) {
-        path_ = node->GetRootPath(); //
+    Filter(const SplittingTree& tree, const NodePtr& node, const SignalInfo& info) : label_(info, node->label), info_(info), period_size_(CalcLog(info.SignalWidth())) {
+        path_ = tree.GetRootPath(node); //
         filter_[Key(info, 0)] = 1; //
         for (int i = 0; i < static_cast<int>(path_.size()); ++i) {
             std::unordered_map<Key, complex_t> updated_filter; //

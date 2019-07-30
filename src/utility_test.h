@@ -22,13 +22,13 @@ std::vector<complex_t> GetSignalFromMap(const FrequencyMap& recovered_freq, cons
     return signal;
 }
 
-bool RunSFFT(const SignalInfo& info, int64_t sparsity, const std::vector<complex_t>& data, const std::vector<complex_t>& desired) {
+bool RunSFFT(const SignalInfo& info, int64_t sparsity, const std::vector<complex_t>& data, const std::vector<complex_t>& desired, int rank = 1) {
     assert(info.SignalSize() == static_cast<int64_t>(data.size()));
     assert(info.SignalSize() == static_cast<int64_t>(desired.size()));
     assert(sparsity <= info.SignalSize());
     DataSignal x(info, data.data());
 
-    FrequencyMap frequency = SparseFFT(x, info, sparsity);
+    FrequencyMap frequency = RecursiveSparseFFT(x, info, sparsity, rank);
     auto result = GetSignalFromMap(frequency, info);
 
     return std::equal(desired.begin(), desired.end(), result.begin(), CheckEqual);

@@ -8,17 +8,18 @@
 
 
 TEST_CASE("Filters frequency simple 1") {
-    auto root = std::make_shared<Node>();
+    auto tree = SplittingTree();
+    auto root = tree.GetRoot();
     auto a = root->MakeLeft();
     auto b = root->MakeRight();
 
     SignalInfo info(1, 2);
 
-    auto filter_a = Filter(a, info);
+    auto filter_a = Filter(tree, a, info);
     REQUIRE(CheckEqual(filter_a.FilterFrequency(Key{info, {1}}), 1));
     REQUIRE(CheckEqual(filter_a.FilterFrequency(Key{info, {0}}), 0.));
 
-    auto filter_b = Filter(b, info);
+    auto filter_b = Filter(tree, b, info);
     REQUIRE(CheckEqual(filter_b.FilterFrequency(Key{info, {1}}), 0));
     REQUIRE(CheckEqual(filter_b.FilterFrequency(Key{info, {0}}), 1.));
 }
@@ -26,35 +27,38 @@ TEST_CASE("Filters frequency simple 1") {
 TEST_CASE("Filters frequency simple 2") {
     SignalInfo info(1, 2);
     {
-        auto root = std::make_shared<Node>();
+        auto tree = SplittingTree();
+        auto root = tree.GetRoot();
         auto a = root->MakeLeft();
 
-        auto filter_a = Filter(a, info);
+        auto filter_a = Filter(tree, a, info);
         REQUIRE(CheckEqual(filter_a.FilterFrequency(Key{info, {1}}), 1));
     }
     {
-        auto root = std::make_shared<Node>();
+        auto tree = SplittingTree();
+        auto root = tree.GetRoot();
         auto b = root->MakeRight();
 
-        auto filter_b = Filter(b, info);
+        auto filter_b = Filter(tree, b, info);
         REQUIRE(CheckEqual(filter_b.FilterFrequency(Key{info, {0}}), 1));
     }
 }
 
 
 TEST_CASE("Filters frequency simple 3") {
-    auto root = std::make_shared<Node>();
+    auto tree = SplittingTree();
+    auto root = tree.GetRoot();
     auto a = root->MakeLeft();
     auto b = root->MakeRight();
     SignalInfo info(1, 4);
 
-    auto filter_a = Filter(a, info);
+    auto filter_a = Filter(tree, a, info);
     REQUIRE(CheckEqual(filter_a.FilterFrequency(Key{info, {1}}), 1));
     REQUIRE(CheckEqual(filter_a.FilterFrequency(Key{info, {3}}), 1));
     REQUIRE(CheckEqual(filter_a.FilterFrequency(Key{info, {0}}), 0.));
     REQUIRE(CheckEqual(filter_a.FilterFrequency(Key{info, {2}}), 0.));
 
-    auto filter_b = Filter(b, info);
+    auto filter_b = Filter(tree, b, info);
     REQUIRE(CheckEqual(filter_b.FilterFrequency(Key{info, {1}}), 0));
     REQUIRE(CheckEqual(filter_b.FilterFrequency(Key{info, {3}}), 0));
     REQUIRE(CheckEqual(filter_b.FilterFrequency(Key{info, {0}}), 1.));
@@ -62,7 +66,8 @@ TEST_CASE("Filters frequency simple 3") {
 }
 
 TEST_CASE("Filters frequency simple 4") {
-    auto root = std::make_shared<Node>();
+    auto tree = SplittingTree();
+    auto root = tree.GetRoot();
     auto a = root->MakeLeft();
     auto b = root->MakeRight();
     auto a1 = a->MakeLeft();
@@ -70,34 +75,36 @@ TEST_CASE("Filters frequency simple 4") {
 
     SignalInfo info(1, 4);
 
-    auto filter_a = Filter(a1, info);
+    auto filter_a = Filter(tree, a1, info);
     REQUIRE(CheckEqual(filter_a.FilterFrequency(Key{info, {3}}), 1));
     REQUIRE(CheckEqual(filter_a.FilterFrequency(Key{info, {0}}), 0.));
 
-    auto filter_b = Filter(b2, info);
+    auto filter_b = Filter(tree, b2, info);
     REQUIRE(CheckEqual(filter_b.FilterFrequency(Key{info, {3}}), 0));
     REQUIRE(CheckEqual(filter_b.FilterFrequency(Key{info, {0}}), 1.));
 }
 
 TEST_CASE("Filters frequency simple 5") {
-    auto root = std::make_shared<Node>();
+    auto tree = SplittingTree();
+    auto root = tree.GetRoot();
     auto a = root->MakeLeft();
     auto a1 = a->MakeLeft();
     auto a2 = a->MakeRight();
 
     SignalInfo info(1, 4);
 
-    auto filter_a = Filter(a1, info);
+    auto filter_a = Filter(tree, a1, info);
     REQUIRE(CheckEqual(filter_a.FilterFrequency(Key{info, {3}}), 1));
     REQUIRE(CheckEqual(filter_a.FilterFrequency(Key{info, {1}}), 0.));
 
-    auto filter_b = Filter(a2, info);
+    auto filter_b = Filter(tree, a2, info);
     REQUIRE(CheckEqual(filter_b.FilterFrequency(Key{info, {3}}), 0));
     REQUIRE(CheckEqual(filter_b.FilterFrequency(Key{info, {1}}), 1.));
 }
 
 TEST_CASE("Filters frequency 2d 1") {
-    auto root = std::make_shared<Node>();
+    auto tree = SplittingTree();
+    auto root = tree.GetRoot();
     auto a1 = root->MakeLeft();
     auto a2 = root->MakeRight();
     auto b1 = a2->MakeLeft();
@@ -109,7 +116,7 @@ TEST_CASE("Filters frequency 2d 1") {
 
     SignalInfo info(2, 4);
 
-    auto filter_d1 = Filter(d1, info);
+    auto filter_d1 = Filter(tree, d1, info);
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
             int value = (i == 0) && (j == 3);
@@ -119,12 +126,13 @@ TEST_CASE("Filters frequency 2d 1") {
 }
 
 TEST_CASE("Filters time simple 1") {
-    auto root = std::make_shared<Node>();
+    auto tree = SplittingTree();
+    auto root = tree.GetRoot();
     auto a = root->MakeLeft();
 
     SignalInfo info(1, 2);
 
-    auto filter = Filter(a, info);
+    auto filter = Filter(tree, a, info);
     auto it = filter.FilterTime().find(Key{info, {0}});
     REQUIRE(it != filter.FilterTime().end());
     REQUIRE(it->second == 1.);
@@ -132,12 +140,13 @@ TEST_CASE("Filters time simple 1") {
 }
 
 TEST_CASE("Filters time simple 2") {
-    auto root = std::make_shared<Node>();
+    auto tree = SplittingTree();
+    auto root = tree.GetRoot();
     auto a = root->MakeLeft();
     auto b = root->MakeRight();
     SignalInfo info(1, 2);
 
-    auto filter = Filter(a, info);
+    auto filter = Filter(tree, a, info);
     auto& filter_time = filter.FilterTime();
     auto it = filter_time.find(Key{info, {0}});
     REQUIRE(it != filter_time.end());
@@ -156,7 +165,7 @@ TEST_CASE("Filter full simple") {
     auto b2 = a2->MakeRight();
     SignalInfo info(1, 4);
 
-    auto filter = Filter(b2, info);
+    auto filter = Filter(tree, b2, info);
     for (int i = 0; i < 4; ++i) {
         REQUIRE(CheckEqual(filter.FilterValueAtTime(Key{info, {i}}), 0.25));
     }
@@ -305,24 +314,24 @@ TEST_CASE("ZeroTest 1") {
         complex_t data[] = {0.25 + 0.i, 0.25 - 0.i, 0.25 + 0.i, 0.25 + 0.i};
         DataSignal x(info, data);
 
-        REQUIRE(!ZeroTest(x, chi, a1, info, 1, delta));
-        REQUIRE(ZeroTest(x, chi, a2, info, 1, delta));
+        REQUIRE(!ZeroTest(x, chi, tree, a1, info, 1, delta));
+        REQUIRE(ZeroTest(x, chi, tree, a2, info, 1, delta));
     }
     {
         // ifft([1, 0, 1, 0])
         complex_t data[] = {0.5+0.i, 0. -0.i, 0.5+0.i, 0. +0.i};
         DataSignal x(info, data);
 
-        REQUIRE(!ZeroTest(x, chi, a1, info, 2, delta));
-        REQUIRE(ZeroTest(x, chi, a2, info, 2, delta));
+        REQUIRE(!ZeroTest(x, chi, tree, a1, info, 2, delta));
+        REQUIRE(ZeroTest(x, chi, tree, a2, info, 2, delta));
     }
     {
         // ifft([0, 1, 1, 0])
         complex_t data[] = {0.5 +0.i  , -0.25+0.25i,  0.  +0.i  , -0.25-0.25i};
         DataSignal x(info, data);
 
-        REQUIRE(ZeroTest(x, chi, a1, info, 2, delta));
-        REQUIRE(ZeroTest(x, chi, a2, info, 2, delta));
+        REQUIRE(ZeroTest(x, chi, tree, a1, info, 2, delta));
+        REQUIRE(ZeroTest(x, chi, tree, a2, info, 2, delta));
     }
 }
 
@@ -342,8 +351,8 @@ TEST_CASE("ZeroTest 1.5") {
         complex_t data[] = {0.5 +0.i  , -0.25+0.25i,  0.  +0.i  , -0.25-0.25i};
         DataSignal x(info, data);
 
-        REQUIRE(ZeroTest(x, chi, b1, info, 2, delta));
-        REQUIRE(!ZeroTest(x, chi, b2, info, 2, delta));
+        REQUIRE(ZeroTest(x, chi, tree, b1, info, 2, delta));
+        REQUIRE(!ZeroTest(x, chi, tree, b2, info, 2, delta));
     }
 }
 
@@ -363,8 +372,8 @@ TEST_CASE("ZeroTest 2") {
         FrequencyMap chi{};
         DataSignal x(info, data);
 
-        REQUIRE(!ZeroTest(x, chi, a, info, 1, delta));
-        REQUIRE(!ZeroTest(x, chi, b3, info, 1, delta));
+        REQUIRE(!ZeroTest(x, chi, tree, a, info, 1, delta));
+        REQUIRE(!ZeroTest(x, chi, tree, b3, info, 1, delta));
     }
     {
         // ifft([0, 0, 0, 1, 0, 0, 0, 0])
@@ -375,8 +384,8 @@ TEST_CASE("ZeroTest 2") {
         FrequencyMap chi{};
         DataSignal x(info, data);
 
-        REQUIRE(!ZeroTest(x, chi, a, info, 1, delta));
-        REQUIRE(ZeroTest(x, chi, b3, info, 1, delta));
+        REQUIRE(!ZeroTest(x, chi, tree, a, info, 1, delta));
+        REQUIRE(ZeroTest(x, chi, tree, b3, info, 1, delta));
     }
     {
         // ifft([0, 0, 1, 1, 1, 0, 0, 0])
@@ -387,8 +396,8 @@ TEST_CASE("ZeroTest 2") {
         FrequencyMap chi{};
         DataSignal x(info, data);
 
-        REQUIRE(ZeroTest(x, chi, a, info, 3, delta));
-        REQUIRE(ZeroTest(x, chi, b3, info, 3, delta));
+        REQUIRE(ZeroTest(x, chi, tree, a, info, 3, delta));
+        REQUIRE(ZeroTest(x, chi, tree, b3, info, 3, delta));
     }
     {
         // ifft([0, 0, 0, 1, 0, 0, 0, 1])
@@ -398,8 +407,8 @@ TEST_CASE("ZeroTest 2") {
         chi[Key{info, {7}}] = 1.;
         DataSignal x(info, data);
 
-        REQUIRE(!ZeroTest(x, chi, a, info, 2, delta));
-        REQUIRE(ZeroTest(x, chi, b3, info, 2, delta));
+        REQUIRE(!ZeroTest(x, chi, tree, a, info, 2, delta));
+        REQUIRE(ZeroTest(x, chi, tree, b3, info, 2, delta));
     }
     {
         // ifft([0, 0, 0, 2, 0, -1, 0, 3])
@@ -412,8 +421,8 @@ TEST_CASE("ZeroTest 2") {
         chi[Key{info, {5}}] = -1.;
         DataSignal x(info, data);
 
-        REQUIRE(!ZeroTest(x, chi, a, info, 3, delta));
-        REQUIRE(ZeroTest(x, chi, b3, info, 3, delta));
+        REQUIRE(!ZeroTest(x, chi, tree, a, info, 3, delta));
+        REQUIRE(ZeroTest(x, chi, tree, b3, info, 3, delta));
     }
     {
         // ifft([0, 0, 0, 0, 0, -1, 0, 3])
@@ -430,8 +439,8 @@ TEST_CASE("ZeroTest 2") {
         chi[Key{info, {5}}] = -1.;
         DataSignal x(info, data);
 
-        REQUIRE(!ZeroTest(x, chi, a, info, 2, delta));
-        REQUIRE(!ZeroTest(x, chi, b3, info, 2, delta));
+        REQUIRE(!ZeroTest(x, chi, tree, a, info, 2, delta));
+        REQUIRE(!ZeroTest(x, chi, tree, b3, info, 2, delta));
     }
 }
 

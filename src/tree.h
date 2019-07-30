@@ -11,11 +11,17 @@
 class SplittingTree {
 public:
     struct Node;
+    using NodePtr = std::shared_ptr<Node>;
 
-    SplittingTree(): root_(std::make_shared<Node>()) {
+    explicit SplittingTree(const SplittingTree* parent_tree, const NodePtr& parent_node): parent_tree_(parent_tree),
+        parent_node_(parent_node), root_(std::make_shared<Node>()) {
+        if (parent_tree) {
+            root_->label = parent_node_->label;
+            root_->level = parent_node_->level;
+        }
     }
 
-    using NodePtr = std::shared_ptr<Node>;
+    SplittingTree(): parent_tree_(nullptr), parent_node_(nullptr), root_(std::make_shared<Node>()) {}
 
     struct Node {
         int level{0};
@@ -51,19 +57,13 @@ public:
         std::pair<NodePtr, NodePtr> AddChildren() {
             return {MakeLeft(), MakeRight()};
         }
-
-
-        std::vector<int> GetRootPath() const {
-            std::vector<int> path;
-            for (auto node = this; node != nullptr; node = node->parent) {
-                if (node->HasBothChild()) {
-                    path.push_back(node->level);
-                }
-            }
-            std::reverse(path.begin(), path.end());
-            return path;
-        }
     };
+
+    std::vector<int> GetRootPath(const NodePtr& v) const {
+        std::vector<int> path;
+        ReversedRootPath(v, path);
+        return path;
+    }
 
     NodePtr GetRoot() const {
         return root_;
@@ -81,15 +81,15 @@ public:
             current = current->parent;
         }
         if (!current) {
-            root_.reset();
+            DeleteNode(root_);
             return;
         }
         NodePtr other_son;
         if (current->left.get() == son) {
-            current->left.reset();
+            DeleteNode(current->left);
             other_son = current->right;
         } else {
-            current->right.reset();
+            DeleteNode(current->right);
             other_son = current->left;
         }
         if (current != root_.get()) {
@@ -107,7 +107,41 @@ public:
         return root_ == nullptr;
     }
 
+    int LeavesCount() const {
+        return root_ ? SubtreeLeavesCount(root_) : 0;
+    }
+
+    int SubtreeLeavesCount(const NodePtr& node) const {
+        if (!node->left && !node->right) {
+            return 1;
+        }
+        int res = 0;
+        if (node->left) {
+            res += SubtreeLeavesCount(node->left);
+        }
+        if (node->right) {
+            res += SubtreeLeavesCount(node->right);
+        }
+        return res;
+    }
+
 private:
+    void ReversedRootPath(const NodePtr& v, std::vector<int>& path) const {
+        for (auto node = v.get(); node != nullptr; node = node->parent) {
+            if (node->HasBothChild()) {
+                path.push_back(node->level);
+            }
+        }
+        if (parent_tree_) {
+            parent_tree_->ReversedRootPath(parent_node_, path);
+        }
+    }
+
+    void DeleteNode(NodePtr& node) const {
+        node->parent = node.get();
+        node.reset();
+    }
+
     std::pair<NodePtr, int> getLightest(const NodePtr& node) const {
         if (!node->left && !node->right) {
             return {node, 0};
@@ -128,7 +162,8 @@ private:
         }
         return {lightest, weight + node->HasBothChild()};
     }
-
+    const SplittingTree* parent_tree_;
+    NodePtr parent_node_;
     NodePtr root_;
 };
 
