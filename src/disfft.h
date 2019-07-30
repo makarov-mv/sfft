@@ -125,10 +125,20 @@ public:
             NodePtr v = tree_.GetLightestNode();
             v->AddChildren();
             std::array<NodePtr, 2> children({v->left, v->right});
-            for (auto& node : children) {
-                SparsityTest(x, info, expected_sparsity, sparsity_step, node, rank, delta, use_preemptive_tests);
+            bool skip_restore = false;
+            if (use_preemptive_tests) {
+                for (auto& node : children) {
+                    if (!ZeroTest(x, total_freq_, tree_, node, info, expected_sparsity, delta)) {
+                        skip_restore = true;
+                        tree_.RemoveNode(node);
+                    }
+                }
             }
-
+            if (!skip_restore) {
+                for (auto& node : children) {
+                    SparsityTest(x, info, expected_sparsity, sparsity_step, node, rank, delta, use_preemptive_tests);
+                }
+            }
         }
         if ((tree_.LeavesCount() * next_sparsity_ + static_cast<int>(recovered_freq_.size())) > expected_sparsity) {
             return std::nullopt;
@@ -140,16 +150,12 @@ private:
     void SparsityTest(const Signal& x, const SignalInfo& info, int64_t expected_sparsity, double sparsity_step,
                                            SplittingTree::NodePtr& node, int rank, IndexGenerator& delta, bool use_preemptive_tests) {
         std::optional<FrequencyMap> probable_freq(std::nullopt);
-        if (use_preemptive_tests && !ZeroTest(x, total_freq_, tree_, node, info, expected_sparsity, delta)) {
-            probable_freq = FrequencyMap();
+        if (rank == 2) {
+            probable_freq = SparseFFT(x, info, next_sparsity_, &tree_, node, total_freq_, delta);
         } else {
-            if (rank == 2) {
-                probable_freq = SparseFFT(x, info, next_sparsity_, &tree_, node, total_freq_, delta);
-            } else {
-                Restorer restorer(&tree_, node, total_freq_);
-                probable_freq = restorer.TryRestore(x, info, next_sparsity_, sparsity_step, rank - 1,
-                                                    delta, use_preemptive_tests);
-            }
+            Restorer restorer(&tree_, node, total_freq_);
+            probable_freq = restorer.TryRestore(x, info, next_sparsity_, sparsity_step, rank - 1,
+                                                delta, use_preemptive_tests);
         }
         if (probable_freq) {
             auto new_total_freq = MapUnion(probable_freq.value(), total_freq_);
