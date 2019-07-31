@@ -83,14 +83,14 @@ public:
         return info_;
     }
 
-    const Key IncreaseAt(int index, int64_t value) const {
+    Key IncreaseAt(int index, int64_t value) const {
         std::vector<int64_t> new_indices(indices_);
         new_indices[index] += value + info_.SignalWidth();
         new_indices[index] %= info_.SignalWidth();
         return Key{info_, std::move(new_indices)};
     }
 
-    const Key operator-(const Key& key) const {
+    Key operator-(const Key& key) const {
         std::vector<int64_t> new_indices(info_.Dimensions());
         for (int i = 0; i < info_.Dimensions(); ++i) {
             new_indices[i] = (indices_[i] - key[i] + info_.SignalWidth()) % info_.SignalWidth();
@@ -98,7 +98,7 @@ public:
         return Key{info_, std::move(new_indices)};
     }
 
-    const Key operator-() const {
+    Key operator-() const {
         std::vector<int64_t> new_indices(info_.Dimensions());
         for (int i = 0; i < info_.Dimensions(); ++i) {
             new_indices[i] = (-indices_[i] + info_.SignalWidth()) % info_.SignalWidth();
