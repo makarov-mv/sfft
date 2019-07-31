@@ -115,8 +115,13 @@ public:
 
     int64_t operator*(const Key& key) const {
         int64_t result = 0;
+        int64_t a = flattened_;
+        int64_t b = key.flattened_;
+        int64_t mask = info_.SignalWidth() - 1;
         for (int i = 0; i < info_.Dimensions(); ++i) {
-            result += key[i] * this->operator[](i);
+            result += (a & mask) * (b & mask);
+            a >>= info_.LogSignalWidth();
+            b >>= info_.LogSignalWidth();
         }
         return result;
     }

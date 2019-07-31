@@ -150,9 +150,9 @@ TEST_CASE("benchmark 1d 2^23 32") {
     auto in = runner.Run(out);
     auto reverse = FFTWRunner(info, FFTW_FORWARD);
     auto x = DataSignal(info, in.data());
-//    BENCHMARK_ADVANCED("fftw")(Catch::Benchmark::Chronometer meter) {
-//        meter.measure([&] { return reverse.Run(in); });
-//    };
+    BENCHMARK_ADVANCED("fftw")(Catch::Benchmark::Chronometer meter) {
+        meter.measure([&] { return reverse.Run(in); });
+    };
     BENCHMARK_ADVANCED("rank 1")(Catch::Benchmark::Chronometer meter) {
         meter.measure([&](int i) { return RecursiveSparseFFT(x, info, sparsity, 1, i); });
     };
