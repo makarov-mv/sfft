@@ -286,18 +286,29 @@ TEST_CASE("Huge tree test 1") {
 }
 
 TEST_CASE("DataSignal") {
-    complex_t data[] = {0, 1, 2, 3, 4};
-    SignalInfo info(1, 5);
+    complex_t data[] = {0, 1, 2, 3, 4, 5, 6, 7};
+    SignalInfo info(1, 8);
 
     DataSignal x(info, data);
     Key pos{info, 4};
     Key one{info, 1};
     int i = 4;
-    for (int t = 0; t < 20; ++t) {
+    for (int t = 0; t < 30; ++t) {
         REQUIRE(x.ValueAtTime(pos) == data[i]);
-        i = (i - 1 + 5) % 5;
+        i = (i - 1 + 8) % 8;
         pos = pos - one;
     }
+}
+
+TEST_CASE("Key multidim") {
+    SignalInfo info(3, 8);
+    Key a(info, {4, 5, 3}), b(info, {7, 4, 7});
+    REQUIRE(a - b == Key(info, {5, 1, 4}));
+    REQUIRE(a * b == 4 * 7 + 5 * 4 + 7 * 3);
+    REQUIRE(a.IncreaseAt(0, 3) == Key(info, {7, 5, 3}));
+    REQUIRE(a.IncreaseAt(1, 3) == Key(info, {4, 0, 3}));
+    REQUIRE(a.IncreaseAt(2, 3) == Key(info, {4, 5, 6}));
+    REQUIRE(-a == Key(info, {4, 3, 5}));
 }
 
 TEST_CASE("ZeroTest 1") {
@@ -308,30 +319,31 @@ TEST_CASE("ZeroTest 1") {
     FrequencyMap chi{};
     SignalInfo info(1, 4);
     IndexGenerator delta(info, 321);
+    TransformSettings settings;
 
     {
         // ifft([1, 0, 0, 0])
         complex_t data[] = {0.25 + 0.i, 0.25 - 0.i, 0.25 + 0.i, 0.25 + 0.i};
         DataSignal x(info, data);
 
-        REQUIRE(!ZeroTest(x, chi, tree, a1, info, 1, delta));
-        REQUIRE(ZeroTest(x, chi, tree, a2, info, 1, delta));
+        REQUIRE(!ZeroTest(x, chi, tree, a1, info, 1, delta, settings));
+        REQUIRE(ZeroTest(x, chi, tree, a2, info, 1, delta, settings));
     }
     {
         // ifft([1, 0, 1, 0])
         complex_t data[] = {0.5+0.i, 0. -0.i, 0.5+0.i, 0. +0.i};
         DataSignal x(info, data);
 
-        REQUIRE(!ZeroTest(x, chi, tree, a1, info, 2, delta));
-        REQUIRE(ZeroTest(x, chi, tree, a2, info, 2, delta));
+        REQUIRE(!ZeroTest(x, chi, tree, a1, info, 2, delta, settings));
+        REQUIRE(ZeroTest(x, chi, tree, a2, info, 2, delta, settings));
     }
     {
         // ifft([0, 1, 1, 0])
         complex_t data[] = {0.5 +0.i  , -0.25+0.25i,  0.  +0.i  , -0.25-0.25i};
         DataSignal x(info, data);
 
-        REQUIRE(ZeroTest(x, chi, tree, a1, info, 2, delta));
-        REQUIRE(ZeroTest(x, chi, tree, a2, info, 2, delta));
+        REQUIRE(ZeroTest(x, chi, tree, a1, info, 2, delta, settings));
+        REQUIRE(ZeroTest(x, chi, tree, a2, info, 2, delta, settings));
     }
 }
 
@@ -345,14 +357,15 @@ TEST_CASE("ZeroTest 1.5") {
     FrequencyMap chi{};
     SignalInfo info(1, 4);
     IndexGenerator delta(info, 321);
+    TransformSettings settings;
 
     {
         // ifft([0, 1, 1, 0])
         complex_t data[] = {0.5 +0.i  , -0.25+0.25i,  0.  +0.i  , -0.25-0.25i};
         DataSignal x(info, data);
 
-        REQUIRE(ZeroTest(x, chi, tree, b1, info, 2, delta));
-        REQUIRE(!ZeroTest(x, chi, tree, b2, info, 2, delta));
+        REQUIRE(ZeroTest(x, chi, tree, b1, info, 2, delta, settings));
+        REQUIRE(!ZeroTest(x, chi, tree, b2, info, 2, delta, settings));
     }
 }
 
@@ -365,6 +378,7 @@ TEST_CASE("ZeroTest 2") {
     auto b3 = b2->MakeRight();
     SignalInfo info(1, 8);
     IndexGenerator delta(info, 321);
+    TransformSettings settings;
 
     {
         // ifft([0, 0, 0, 0, 0, 0, 0, 0])
@@ -372,8 +386,8 @@ TEST_CASE("ZeroTest 2") {
         FrequencyMap chi{};
         DataSignal x(info, data);
 
-        REQUIRE(!ZeroTest(x, chi, tree, a, info, 1, delta));
-        REQUIRE(!ZeroTest(x, chi, tree, b3, info, 1, delta));
+        REQUIRE(!ZeroTest(x, chi, tree, a, info, 1, delta, settings));
+        REQUIRE(!ZeroTest(x, chi, tree, b3, info, 1, delta, settings));
     }
     {
         // ifft([0, 0, 0, 1, 0, 0, 0, 0])
@@ -384,8 +398,8 @@ TEST_CASE("ZeroTest 2") {
         FrequencyMap chi{};
         DataSignal x(info, data);
 
-        REQUIRE(!ZeroTest(x, chi, tree, a, info, 1, delta));
-        REQUIRE(ZeroTest(x, chi, tree, b3, info, 1, delta));
+        REQUIRE(!ZeroTest(x, chi, tree, a, info, 1, delta, settings));
+        REQUIRE(ZeroTest(x, chi, tree, b3, info, 1, delta, settings));
     }
     {
         // ifft([0, 0, 1, 1, 1, 0, 0, 0])
@@ -396,8 +410,8 @@ TEST_CASE("ZeroTest 2") {
         FrequencyMap chi{};
         DataSignal x(info, data);
 
-        REQUIRE(ZeroTest(x, chi, tree, a, info, 3, delta));
-        REQUIRE(ZeroTest(x, chi, tree, b3, info, 3, delta));
+        REQUIRE(ZeroTest(x, chi, tree, a, info, 3, delta, settings));
+        REQUIRE(ZeroTest(x, chi, tree, b3, info, 3, delta, settings));
     }
     {
         // ifft([0, 0, 0, 1, 0, 0, 0, 1])
@@ -407,8 +421,8 @@ TEST_CASE("ZeroTest 2") {
         chi[Key{info, {7}}] = 1.;
         DataSignal x(info, data);
 
-        REQUIRE(!ZeroTest(x, chi, tree, a, info, 2, delta));
-        REQUIRE(ZeroTest(x, chi, tree, b3, info, 2, delta));
+        REQUIRE(!ZeroTest(x, chi, tree, a, info, 2, delta, settings));
+        REQUIRE(ZeroTest(x, chi, tree, b3, info, 2, delta, settings));
     }
     {
         // ifft([0, 0, 0, 2, 0, -1, 0, 3])
@@ -421,8 +435,8 @@ TEST_CASE("ZeroTest 2") {
         chi[Key{info, {5}}] = -1.;
         DataSignal x(info, data);
 
-        REQUIRE(!ZeroTest(x, chi, tree, a, info, 3, delta));
-        REQUIRE(ZeroTest(x, chi, tree, b3, info, 3, delta));
+        REQUIRE(!ZeroTest(x, chi, tree, a, info, 3, delta, settings));
+        REQUIRE(ZeroTest(x, chi, tree, b3, info, 3, delta, settings));
     }
     {
         // ifft([0, 0, 0, 0, 0, -1, 0, 3])
@@ -439,8 +453,8 @@ TEST_CASE("ZeroTest 2") {
         chi[Key{info, {5}}] = -1.;
         DataSignal x(info, data);
 
-        REQUIRE(!ZeroTest(x, chi, tree, a, info, 2, delta));
-        REQUIRE(!ZeroTest(x, chi, tree, b3, info, 2, delta));
+        REQUIRE(!ZeroTest(x, chi, tree, a, info, 2, delta, settings));
+        REQUIRE(!ZeroTest(x, chi, tree, b3, info, 2, delta, settings));
     }
 }
 
