@@ -49,7 +49,7 @@ private:
 
 struct TransformSettings {
     bool use_preemptive_tests{true};
-    double zero_test_koef{2};
+    double zero_test_koef{1};
 };
 
 bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const SplittingTree& tree,

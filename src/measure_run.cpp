@@ -22,6 +22,15 @@ std::vector<complex_t> GenDiracComb(const SignalInfo& info, int64_t sparsity) {
     return out;
 }
 
+template <class Generator>
+std::vector<complex_t> GenCombined(const SignalInfo& info, int64_t sparsity, Generator& gen) {
+    std::vector<complex_t> out = GenRandomSupport(info, sparsity / 2, gen);
+    for (int i = 0; i < info.SignalSize(); i += info.SignalSize() / (sparsity / 2)) {
+        out[i] += 1;
+    }
+    return out;
+}
+
 void PrintDur(const std::chrono::nanoseconds& dur) {
     std::cout << std::chrono::duration<double, std::milli>(dur).count();
 }
@@ -57,11 +66,10 @@ int main() {
     std::vector<std::chrono::nanoseconds> dur2;
     std::vector<std::chrono::nanoseconds> dur3;
 
-    for (int64_t p = 10; p <= 24; ++p) {
-        SignalInfo info{1, 1 << p};
+    for (int64_t p = 3; p <= 8; ++p) {
+        SignalInfo info{3, 1 << p};
         const int64_t sparsity = 32;
-        auto out = GenRandomSupport(info, sparsity, gen);
-//        auto out = GenDiracComb(info, sparsity);
+        auto out = GenCombined(info, sparsity, gen);
         auto runner = FFTWRunner(info, FFTW_BACKWARD);
         auto reverse = FFTWRunner(info, FFTW_FORWARD);
         auto in = runner.Run(out);
