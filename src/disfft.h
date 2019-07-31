@@ -56,12 +56,17 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
               const SplittingTree::NodePtr& cone_node, const SignalInfo& info, int64_t sparsity, IndexGenerator& delta,
               const TransformSettings& settings) {
     auto filter = Filter(tree, cone_node, info);
-    int64_t max_iters = std::max<int64_t>(llround(settings.zero_test_koef * sparsity * log2(info.SignalSize())), 1); // check
+    int64_t max_iters = std::max<int64_t>(llround(settings.zero_test_koef * sparsity * log2(info.SignalSize())), 1);
+    std::vector<std::pair<Key, complex_t>> freq_precalc;
+    freq_precalc.reserve(recovered_freq.size());
+    for (const auto& freq: recovered_freq) {
+        freq_precalc.emplace_back(freq.first, freq.second * filter.FilterFrequency(freq.first));
+    }
     for (int64_t i = 0; i < max_iters; ++i) {
         auto time = delta.Next();
         complex_t recovered_at_time = 0;
-        for (const auto& freq: recovered_freq) {
-            recovered_at_time += CalcKernel(freq.first * time, info.SignalWidth()) * freq.second * filter.FilterFrequency(freq.first);
+        for (const auto& freq: freq_precalc) {
+            recovered_at_time += CalcKernel(freq.first * time, info.SignalWidth()) * freq.second;
         }
         recovered_at_time /= static_cast<double>(info.SignalSize());
         complex_t filtered_at_time = 0;
