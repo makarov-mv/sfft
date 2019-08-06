@@ -133,10 +133,9 @@ TEST_CASE("Filters time simple 1") {
     SignalInfo info(1, 2);
 
     auto filter = Filter(tree, a, info);
-    auto it = filter.FilterTime().find(Key{info, {0}});
-    REQUIRE(it != filter.FilterTime().end());
-    REQUIRE(it->second == 1.);
-    REQUIRE(filter.FilterTime().find(Key{info, {1}}) == filter.FilterTime().end());
+    auto it = filter.FilterValueAtTime(Key{info, {0}});
+    REQUIRE(it == 1.);
+    REQUIRE(filter.FilterValueAtTime(Key{info, {1}}) == 0.);
 }
 
 TEST_CASE("Filters time simple 2") {
@@ -147,13 +146,10 @@ TEST_CASE("Filters time simple 2") {
     SignalInfo info(1, 2);
 
     auto filter = Filter(tree, a, info);
-    auto& filter_time = filter.FilterTime();
-    auto it = filter_time.find(Key{info, {0}});
-    REQUIRE(it != filter_time.end());
-    REQUIRE(it->second == 0.5);
-    it = filter_time.find(Key{info, {1}});
-    REQUIRE(it != filter_time.end());
-    REQUIRE(CheckEqual(it->second, -0.5));
+    auto it = filter.FilterValueAtTime(Key{info, {0}});
+    REQUIRE(it == 0.5);
+    it = filter.FilterValueAtTime(Key{info, {1}});
+    REQUIRE(CheckEqual(it, -0.5));
 }
 
 TEST_CASE("Filter full simple") {

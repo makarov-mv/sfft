@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <unordered_map>
+#include <iterator>
 #include "tree.h"
 
 class SignalInfo {
@@ -160,26 +161,29 @@ class Filter {
 public:
 
     Filter(const SplittingTree& tree, const NodePtr& node, const SignalInfo& info) : label_(info, node->label), info_(info), period_size_(CalcLog(info.SignalWidth())) {
-        path_ = tree.GetRootPath(node); //
-        filter_[Key(info, 0)] = 1; //
+        path_ = tree.GetRootPath(node);
+        std::unordered_map<Key, complex_t> filter;
+        filter[Key(info, 0)] = 1;
         for (int i = 0; i < static_cast<int>(path_.size()); ++i) {
-            std::unordered_map<Key, complex_t> updated_filter; //
-            int current_period = CalcCurrentPeriod(i); //
+            std::unordered_map<Key, complex_t> updated_filter;
+            int current_period = CalcCurrentPeriod(i);
             int64_t subtree_level = CalcSubtreeLevel(i);
-            int64_t shift = info.SignalWidth() >> subtree_level; //
-            auto phase = CalcKernel(-label_[current_period], 1 << subtree_level); //
+            int64_t shift = info.SignalWidth() >> subtree_level;
+            auto phase = CalcKernel(-label_[current_period], 1 << subtree_level);
             phase_.push_back(phase);
-            for (auto it : filter_) {
-                Key index = it.first; //
-                updated_filter[index] = (FilterValueAtTime(index) + phase * FilterValueAtTime(index.IncreaseAt(current_period, shift))) / 2.; //
-                updated_filter[index.IncreaseAt(current_period, -shift)] = (FilterValueAtTime(index.IncreaseAt(current_period, -shift)) + phase * FilterValueAtTime(index)) / 2.; //
+            for (auto it : filter) {
+                Key index = it.first;
+                updated_filter[index] = (MapFilterValueAtTime(filter, index) + phase * MapFilterValueAtTime(filter, index.IncreaseAt(current_period, shift))) / 2.;
+                updated_filter[index.IncreaseAt(current_period, -shift)] = (MapFilterValueAtTime(filter, index.IncreaseAt(current_period, -shift)) + phase * MapFilterValueAtTime(filter, index)) / 2.;
             }
-            filter_.swap(updated_filter);
+            filter.swap(updated_filter);
             updated_filter.clear();
         }
+        filter_.reserve(filter.size());
+        filter_.insert(filter_.end(), std::make_move_iterator(filter.begin()), std::make_move_iterator(filter.end()));
     }
 
-    const std::unordered_map<Key, complex_t>& FilterTime() const {
+    const std::vector<std::pair<Key, complex_t>>& FilterTime() const {
         return filter_;
     }
 
@@ -193,9 +197,10 @@ public:
     }
 
     complex_t FilterValueAtTime(const Key& time) const {
-        auto it = filter_.find(time);
-        if (it != filter_.end()) {
-            return it->second;
+        for (const auto& freq : filter_) {
+            if (freq.first == time) {
+                return freq.second;
+            }
         }
         return 0.;
     }
@@ -210,6 +215,14 @@ private:
         return path_[path_pos] / period_size_;
     }
 
+    complex_t MapFilterValueAtTime(const std::unordered_map<Key, complex_t>& filter, const Key& time) const {
+        auto it = filter.find(time);
+        if (it != filter.end()) {
+            return it->second;
+        }
+        return 0.;
+    }
+
 // TODO: Calc frequencies faster
 //    complex_t CalcFrequencyFactor(double g) const {
 //        return {(1 + cos(g)) / 2, sin(g) / 2};
@@ -220,5 +233,5 @@ private:
     int period_size_;
     std::vector<int> path_;
     std::vector<complex_t> phase_;
-    std::unordered_map<Key, complex_t> filter_;
+    std::vector<std::pair<Key, complex_t>> filter_;
 };

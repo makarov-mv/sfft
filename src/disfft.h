@@ -22,7 +22,6 @@ public:
     }
 
     complex_t ValueAtTime(const Key& key) const override {
-        assert(key.GetSignalInfo() == info_);
         return values_[key.Flatten()];
     }
 
