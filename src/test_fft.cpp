@@ -292,14 +292,16 @@ TEST_CASE("DataSignal") {
     for (int t = 0; t < 30; ++t) {
         REQUIRE(x.ValueAtTime(pos) == data[i]);
         i = (i - 1 + 8) % 8;
-        pos = pos - one;
+        pos.StoreDifference(pos, one);
     }
 }
 
 TEST_CASE("Key multidim") {
     SignalInfo info(3, 8);
     Key a(info, {4, 5, 3}), b(info, {7, 4, 7});
-    REQUIRE(a - b == Key(info, {5, 1, 4}));
+    Key buf(info);
+    buf.StoreDifference(a, b);
+    REQUIRE(buf == Key(info, {5, 1, 4}));
     REQUIRE(a * b == 4 * 7 + 5 * 4 + 7 * 3);
     REQUIRE(a.IncreaseAt(0, 3) == Key(info, {7, 5, 3}));
     REQUIRE(a.IncreaseAt(1, 3) == Key(info, {4, 0, 3}));

@@ -36,8 +36,8 @@ public:
         info_(info), rand_gen_(seed), index_gen_(0, info.SignalSize()) {
     }
 
-    Key Next() {
-        return Key(info_, index_gen_(rand_gen_));
+    void Next(Key& value) {
+        value.SetFromFlatten(index_gen_(rand_gen_));
     }
 
 private:
@@ -61,16 +61,20 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
     for (const auto& freq: recovered_freq) {
         freq_precalc.emplace_back(freq.first, freq.second * filter.FilterFrequency(freq.first));
     }
+    Key diff(info);
+    Key time(info);
     for (int64_t i = 0; i < max_iters; ++i) {
-        auto time = delta.Next();
+        delta.Next(time);
+        double phi_koef = 2 * PI / info.SignalWidth();
         complex_t recovered_at_time = 0;
         for (const auto& freq: freq_precalc) {
-            recovered_at_time += CalcKernel(freq.first * time, info.SignalWidth()) * freq.second;
+            recovered_at_time += CalcKernelNormalized((freq.first * time) * phi_koef) * freq.second;
         }
         recovered_at_time /= static_cast<double>(info.SignalSize());
         complex_t filtered_at_time = 0;
         for (const auto& value: filter.FilterTime()) {
-            filtered_at_time += value.second * x.ValueAtTime(time - value.first);
+            diff.StoreDifference(time, value.first);
+            filtered_at_time += value.second * x.ValueAtTime(diff);
         }
         if (NonZero(filtered_at_time - recovered_at_time)) {
             return true;

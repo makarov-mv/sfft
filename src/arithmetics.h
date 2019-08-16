@@ -16,6 +16,10 @@ complex_t CalcKernel(double power, double base) {
     return {cos(phi), sin(phi)};
 }
 
+complex_t CalcKernelNormalized(double phi) {
+    return {cos(phi), sin(phi)};
+}
+
 bool NonZero(complex_t value) {
     // two times faster than abs(value) > EPS
     return value.real() > EPS || value.real() < -EPS || value.imag() > EPS || value.imag() < -EPS;

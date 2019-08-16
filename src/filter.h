@@ -49,88 +49,91 @@ private:
 
 class Key {
 public:
-    explicit Key(const SignalInfo& info) : info_(info), flattened_(0) {
+    explicit Key(const SignalInfo& info) : info_(info), indices_(info.Dimensions(), 0) {
     }
 
-    explicit Key(const SignalInfo& info, std::vector<int64_t> key) : info_(info), flattened_(0) {
-        assert(info.Dimensions() == static_cast<int>(key.size()));
-        for (auto it = key.rbegin(); it != key.rend(); ++it) {
-            flattened_ = flattened_ * info.SignalWidth() + *it;
-        }
+    explicit Key(const SignalInfo& info, std::vector<int64_t> key) : info_(info), indices_(std::move(key)) {
+        assert(info.Dimensions() == static_cast<int>(indices_.size()));
     }
 
-    explicit Key(const SignalInfo& info, const std::initializer_list<int64_t>& key) : Key(info, std::vector<int64_t>(key)) {
+    explicit Key(const SignalInfo& info, const std::initializer_list<int64_t>& key) : info_(info), indices_(info.Dimensions(), 0) {
+        assert(info.Dimensions() == static_cast<int>(indices_.size()));
+        std::copy(key.begin(), key.end(), indices_.begin());
     }
 
-    explicit Key(const SignalInfo& info, int64_t flatten) : info_(info), flattened_(flatten) {
+    explicit Key(const SignalInfo& info, int64_t flatten) : info_(info), indices_(info.Dimensions(), 0) {
+        assert(info.Dimensions() == static_cast<int>(indices_.size()));
+        SetFromFlatten(flatten);
     }
 
     // leftmost dimension is highest in the tree
-    int64_t operator[](int64_t index) const {
-        return (flattened_ & ((info_.SignalWidth() - 1) << (index * info_.LogSignalWidth()))) >> (index * info_.LogSignalWidth());
+    const int64_t& operator[](int index) const {
+        return indices_[index];
+    }
+
+    int64_t& operator[](int index) {
+        return indices_[index];
     }
 
     // in flattened form, least significant dimension is highest
     int64_t Flatten() const {
-        return flattened_;
+        int64_t res = 0;
+        for (int i = info_.Dimensions() - 1; i >= 0; --i) {
+            res = (res << info_.LogSignalWidth()) | indices_[i];
+        }
+        return res;
     }
 
     bool operator==(const Key& other) const {
         assert(info_ == other.info_);
-        return flattened_ == other.flattened_;
+        return indices_ == other.indices_;
     }
 
     SignalInfo GetSignalInfo() const {
         return info_;
     }
 
-    Key IncreaseAt(int64_t index, int64_t value) const {
-        int64_t new_flattened = flattened_;
-        int64_t old_value = this->operator[](index);
-        new_flattened -= old_value << (index * info_.LogSignalWidth());
-        old_value += value + info_.SignalWidth();
-        old_value %= info_.SignalWidth();
-        new_flattened += old_value << (index * info_.LogSignalWidth());
-        return Key{info_, new_flattened};
+    Key IncreaseAt(int index, int64_t value) const {
+        std::vector<int64_t> new_indices(indices_);
+        new_indices[index] += value + info_.SignalWidth();
+        new_indices[index] %= info_.SignalWidth();
+        return Key{info_, std::move(new_indices)};
     }
 
-    Key operator-(const Key& key) const {
-        int64_t new_flattened = 0;
-        int64_t a = flattened_;
-        int64_t b = key.flattened_;
+    void StoreDifference(const Key& a, const Key& b) {
+        int64_t mod = info_.SignalWidth() - 1;
         for (int i = 0; i < info_.Dimensions(); ++i) {
-            new_flattened += ((
-                (a & (info_.SignalWidth() - 1))
-                - (b & (info_.SignalWidth() - 1))
-                + info_.SignalWidth()) & (info_.SignalWidth() - 1)) << (i * info_.LogSignalWidth());
-            a >>= info_.LogSignalWidth();
-            b >>= info_.LogSignalWidth();
+            indices_[i] = (a.indices_[i] - b.indices_[i] + info_.SignalWidth()) & mod;
         }
-        return Key{info_, new_flattened};
     }
 
     Key operator-() const {
-        Key zero{info_, 0};
-        return zero - *this;
+        std::vector<int64_t> new_indices(info_.Dimensions());
+        for (int i = 0; i < info_.Dimensions(); ++i) {
+            new_indices[i] = (-indices_[i] + info_.SignalWidth()) % info_.SignalWidth();
+        }
+        return Key{info_, std::move(new_indices)};
     }
 
     int64_t operator*(const Key& key) const {
         int64_t result = 0;
-        int64_t a = flattened_;
-        int64_t b = key.flattened_;
-        int64_t mask = info_.SignalWidth() - 1;
         for (int i = 0; i < info_.Dimensions(); ++i) {
-            result += (a & mask) * (b & mask);
-            a >>= info_.LogSignalWidth();
-            b >>= info_.LogSignalWidth();
+            result += key[i] * indices_[i];
         }
         return result;
     }
 
-private:
+    void SetFromFlatten(int64_t flat) {
+        int64_t mod = info_.SignalWidth() - 1;
+        for (int i = 0; i < info_.Dimensions(); ++i) {
+            indices_[i] = flat & mod;
+            flat >>= info_.LogSignalWidth();
+        }
+    }
 
+private:
     SignalInfo info_;
-    int64_t flattened_;
+    std::vector<int64_t> indices_;
 };
 
 namespace std {
