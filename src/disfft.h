@@ -51,6 +51,30 @@ struct TransformSettings {
     double zero_test_koef{1};
 };
 
+class AlignedVector {
+public:
+    AlignedVector(int n) {
+        if (n % 2 == 1) {
+            n += 1;
+        }
+        data_ = (double *) std::aligned_alloc(16, n * sizeof(double));
+        for (int i = 0; i < n; ++i) {
+            data_[i] = 0;
+        }
+    }
+
+    ~AlignedVector() {
+        std::free(data_);
+    }
+
+    double& operator[](int i) {
+        return data_[i];
+    }
+
+private:
+    double* data_;
+};
+
 bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const SplittingTree& tree,
               const SplittingTree::NodePtr& cone_node, const SignalInfo& info, int64_t sparsity, IndexGenerator& delta,
               const TransformSettings& settings) {
@@ -61,14 +85,26 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
     for (const auto& freq: recovered_freq) {
         freq_precalc.emplace_back(freq.first, freq.second * filter.FilterFrequency(freq.first));
     }
+
     Key diff(info);
     Key time(info);
-    for (int64_t i = 0; i < max_iters; ++i) {
+    AlignedVector phi(freq_precalc.size());
+    AlignedVector x_kernel(freq_precalc.size());
+    AlignedVector y_kernel(freq_precalc.size());
+    double phi_koef = 2 * PI / info.SignalWidth();
+
+    for (int64_t iter = 0; iter < max_iters; ++iter) {
         delta.Next(time);
-        double phi_koef = 2 * PI / info.SignalWidth();
         complex_t recovered_at_time = 0;
-        for (const auto& freq: freq_precalc) {
-            recovered_at_time += CalcKernelNormalized((freq.first * time) * phi_koef) * freq.second;
+        for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
+            phi[j] = (freq_precalc[j].first * time) * phi_koef;
+        }
+        for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
+            x_kernel[j] = cos(phi[j]);
+            y_kernel[j] = sin(phi[j]);
+        }
+        for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
+            recovered_at_time += complex_t(x_kernel[j], y_kernel[j]) * freq_precalc[j].second;
         }
         recovered_at_time /= static_cast<double>(info.SignalSize());
         complex_t filtered_at_time = 0;
