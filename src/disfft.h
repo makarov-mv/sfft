@@ -4,8 +4,10 @@
 #include <algorithm>
 #include <vector>
 #include <initializer_list>
+#include <atomic>
 #include "random"
 #include "optional"
+#include "thread"
 
 class Signal {
 public:
@@ -40,6 +42,10 @@ public:
         value.SetFromFlatten(index_gen_(rand_gen_));
     }
 
+    int64_t NextFlat() {
+        return index_gen_(rand_gen_);
+    }
+
 private:
     SignalInfo info_;
     std::mt19937_64 rand_gen_;
@@ -49,6 +55,7 @@ private:
 struct TransformSettings {
     bool use_preemptive_tests{true};
     double zero_test_koef{1};
+    int threads_num{2/*(int)std::thread::hardware_concurrency()*/};
 };
 
 class AlignedVector {
@@ -78,45 +85,52 @@ private:
 bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const SplittingTree& tree,
               const SplittingTree::NodePtr& cone_node, const SignalInfo& info, int64_t sparsity, IndexGenerator& delta,
               const TransformSettings& settings) {
-    auto filter = Filter(tree, cone_node, info);
+    const auto filter = Filter(tree, cone_node, info);
     int64_t max_iters = std::max<int64_t>(llround(settings.zero_test_koef * sparsity * log2(info.SignalSize())), 1);
     std::vector<std::pair<Key, complex_t>> freq_precalc;
     freq_precalc.reserve(recovered_freq.size());
     for (const auto& freq: recovered_freq) {
         freq_precalc.emplace_back(freq.first, freq.second * filter.FilterFrequency(freq.first));
     }
-
-    Key diff(info);
-    Key time(info);
-    AlignedVector phi(freq_precalc.size());
-    AlignedVector x_kernel(freq_precalc.size());
-    AlignedVector y_kernel(freq_precalc.size());
-    double phi_koef = 2 * PI / info.SignalWidth();
-
-    for (int64_t iter = 0; iter < max_iters; ++iter) {
-        delta.Next(time);
-        complex_t recovered_at_time = 0;
-        for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
-            phi[j] = (freq_precalc[j].first * time) * phi_koef;
-        }
-        for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
-            x_kernel[j] = cos(phi[j]);
-            y_kernel[j] = sin(phi[j]);
-        }
-        for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
-            recovered_at_time += complex_t(x_kernel[j], y_kernel[j]) * freq_precalc[j].second;
-        }
-        recovered_at_time /= static_cast<double>(info.SignalSize());
-        complex_t filtered_at_time = 0;
-        for (const auto& value: filter.FilterTime()) {
-            diff.StoreDifference(time, value.first);
-            filtered_at_time += value.second * x.ValueAtTime(diff);
-        }
-        if (NonZero(filtered_at_time - recovered_at_time)) {
-            return true;
-        }
+    int thread_iters = (max_iters / settings.threads_num) + (max_iters % settings.threads_num ? 1 : 0);
+    std::vector<int64_t> time_points(settings.threads_num * thread_iters);
+    for (auto& time : time_points) {
+        time = delta.NextFlat();
     }
-    return false;
+    std::atomic<bool> non_zero(false);
+    auto job = [&x, &info, &thread_iters, &freq_precalc, &filter, &non_zero](int64_t* times_view) {
+        Key diff(info);
+        Key time(info);
+        double phi_koef = 2 * PI / info.SignalWidth();
+
+        for (int64_t iter = 0; iter < thread_iters && !non_zero.load(); ++iter) {
+            time.SetFromFlatten(times_view[iter]);
+            complex_t recovered_at_time = 0;
+            for (const auto& freq: freq_precalc) {
+                recovered_at_time += CalcKernelNormalized((freq.first * time) * phi_koef) * freq.second;
+            }
+            recovered_at_time /= static_cast<double>(info.SignalSize());
+            complex_t filtered_at_time = 0;
+            for (const auto& value: filter.FilterTime()) {
+                diff.StoreDifference(time, value.first);
+                filtered_at_time += value.second * x.ValueAtTime(diff);
+            }
+            if (NonZero(filtered_at_time - recovered_at_time)) {
+                non_zero.store(true);
+                return;
+            }
+        }
+        return;
+    };
+    job(time_points.data());
+//    std::vector<std::thread> jobs;
+//    for (int i = 0; i < settings.threads_num; ++i) {
+//        jobs.emplace_back(job, time_points.data() + i * thread_iters);
+//    }
+//    for (int i = 0; i < settings.threads_num; ++i) {
+//        jobs[i].join();
+//    }
+    return non_zero.load();
 }
 
 std::optional<FrequencyMap> SparseFFT(const Signal& x, const SignalInfo& info, int64_t expected_sparsity, SplittingTree* parent_tree,

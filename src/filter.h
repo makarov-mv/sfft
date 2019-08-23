@@ -96,7 +96,7 @@ public:
     Key IncreaseAt(int index, int64_t value) const {
         std::vector<int64_t> new_indices(indices_);
         new_indices[index] += value + info_.SignalWidth();
-        new_indices[index] %= info_.SignalWidth();
+        new_indices[index] &= info_.SignalWidth() - 1;
         return Key{info_, std::move(new_indices)};
     }
 
@@ -110,7 +110,7 @@ public:
     Key operator-() const {
         std::vector<int64_t> new_indices(info_.Dimensions());
         for (int i = 0; i < info_.Dimensions(); ++i) {
-            new_indices[i] = (-indices_[i] + info_.SignalWidth()) % info_.SignalWidth();
+            new_indices[i] = (-indices_[i] + info_.SignalWidth()) & (info_.SignalWidth() - 1);
         }
         return Key{info_, std::move(new_indices)};
     }

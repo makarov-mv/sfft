@@ -69,7 +69,7 @@ int main() {
 
     for (int64_t p = 3; p <= 7; ++p) {
         SignalInfo info{3, 1 << p};
-        const int64_t sparsity = 27;
+        const int64_t sparsity = 50;
         auto out = GenCombined(info, sparsity, gen);
         auto runner = FFTWRunner(info, FFTW_BACKWARD);
         auto reverse = FFTWRunner(info, FFTW_FORWARD);
