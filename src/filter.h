@@ -172,6 +172,7 @@ public:
             int current_period = CalcCurrentPeriod(i);
             int64_t subtree_level = CalcSubtreeLevel(i);
             int64_t shift = info.SignalWidth() >> subtree_level;
+            assert(current_period >= 0 && current_period < info.Dimensions());
             auto phase = CalcKernel(-label_[current_period], 1 << subtree_level);
             phase_.push_back(phase);
             for (auto it : filter) {

@@ -182,11 +182,15 @@ public:
                     }
                 }
             }
-            if (!skip_restore) {
                 for (auto& node : children) {
-                    SparsityTest(x, info, expected_sparsity, sparsity_step, node, rank, delta, settings);
+                    if (!skip_restore || (!node->Removed() && node->level == info.Dimensions() * info.LogSignalWidth())) {
+                        SparsityTest(x, info, expected_sparsity, sparsity_step, node, rank, delta, settings);
+                        // Sometimes errors are too big, and the node is not removed after SparsityTest
+                        if (!node->Removed() && node->level == info.Dimensions() * info.LogSignalWidth()) {
+                            tree_.RemoveNode(node);
+                        }
+                    }
                 }
-            }
         }
         if ((tree_.LeavesCount() * next_sparsity_ + static_cast<int>(recovered_freq_.size())) > expected_sparsity) {
             return std::nullopt;

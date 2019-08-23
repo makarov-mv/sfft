@@ -57,6 +57,10 @@ public:
         std::pair<NodePtr, NodePtr> AddChildren() {
             return {MakeLeft(), MakeRight()};
         }
+
+        bool Removed() const {
+            return this == parent;
+        }
     };
 
     std::vector<int> GetRootPath(const NodePtr& v) const {
@@ -73,7 +77,7 @@ public:
         return getLightest(root_).first;
     }
 
-    void RemoveNode(const NodePtr& node) {
+    void RemoveNode(NodePtr node) {
         Node* current = node.get();
         Node* son = nullptr;
         while (current && !current->HasBothChild()) {
@@ -81,6 +85,7 @@ public:
             current = current->parent;
         }
         if (!current) {
+            node->parent = node.get();
             DeleteNode(root_);
             return;
         }
@@ -101,6 +106,7 @@ public:
                 parent->right = other_son;
             }
         }
+        node->parent = node.get();
     }
 
     bool IsEmpty() const {
