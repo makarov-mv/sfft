@@ -59,38 +59,41 @@ auto RunBenchmark(const std::string& name, int iters, Func function, std::vector
 }
 
 int main() {
-    std::mt19937_64 gen(687654);
+    std::mt19937_64 gen(123423);
     std::vector<int64_t> npow;
     std::vector<std::chrono::nanoseconds> dur_fftw;
     std::vector<std::chrono::nanoseconds> dur1;
     std::vector<std::chrono::nanoseconds> dur2;
     std::vector<std::chrono::nanoseconds> dur3;
+    std::vector<std::chrono::nanoseconds> dur4;
 
-    for (int64_t p = 3; p <= 8; ++p) {
+    for (int64_t p = 3; p <= 7; ++p) {
         SignalInfo info{3, 1 << p};
         const int64_t sparsity = 27;
-        auto out = GenRandomSupport(info, sparsity, gen);
+        auto out = GenCombined(info, sparsity, gen);
         auto runner = FFTWRunner(info, FFTW_BACKWARD);
         auto reverse = FFTWRunner(info, FFTW_FORWARD);
         auto in = runner.Run(out);
         auto x = DataSignal(info, in.data());
         npow.push_back(p);
         std::cout << "p = " << p << ", ";
-        RunBenchmark("fftw", 3, [&](int){return reverse.Run(in);}, dur_fftw);
-        RunBenchmark("rank 1", 3, [&](int i){return RecursiveSparseFFT(x, info, sparsity, 1, i);}, dur1);
-        RunBenchmark("rank 2", 3, [&](int i){return RecursiveSparseFFT(x, info, sparsity, 2, i);}, dur2);
-        RunBenchmark("rank 3", 3, [&](int i){return RecursiveSparseFFT(x, info, sparsity, 3, i);}, dur3);
+        RunBenchmark("fftw", 5, [&](int){return reverse.Run(in);}, dur_fftw);
+        RunBenchmark("rank 1", 5, [&](int i){return RecursiveSparseFFT(x, info, sparsity, 1, i);}, dur1);
+        RunBenchmark("rank 2", 5, [&](int i){return RecursiveSparseFFT(x, info, sparsity, 2, i);}, dur2);
+        RunBenchmark("rank 3", 5, [&](int i){return RecursiveSparseFFT(x, info, sparsity, 3, i);}, dur3);
+        RunBenchmark("rank 4", 5, [&](int i){return RecursiveSparseFFT(x, info, sparsity, 4, i);}, dur4);
         std::cout << std::endl;
     }
-    std::cout << "p = [\n";
-    for (auto p: npow) {
-        std::cout << p << ",\n";
-    }
-    std::cout << "]\n";
-    PrintArr("fftw", dur_fftw);
-    PrintArr("rank1", dur1);
-    PrintArr("rank2", dur2);
-    PrintArr("rank3", dur3);
+//    std::cout << "p = [\n";
+//    for (auto p: npow) {
+//        std::cout << p << ",\n";
+//    }
+//    std::cout << "]\n";
+//    PrintArr("fftw", dur_fftw);
+//    PrintArr("rank1", dur1);
+//    PrintArr("rank2", dur2);
+//    PrintArr("rank3", dur3);
+//    PrintArr("rank4", dur4);
     return 0;
 }
 

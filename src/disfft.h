@@ -163,12 +163,13 @@ public:
     Restorer(const SplittingTree* parent_tree, SplittingTree::NodePtr& parent_node, const FrequencyMap& known_freq)
         : recovered_freq_(), total_freq_(known_freq), tree_(parent_tree, parent_node) {}
 
-    std::optional<FrequencyMap> TryRestore(const Signal& x, const SignalInfo& info, int64_t expected_sparsity, double sparsity_step,
+    std::optional<FrequencyMap> TryRestore(const Signal& x, const SignalInfo& info, const std::vector<int>& sparsities,
                                            int rank, IndexGenerator& delta, const TransformSettings& settings) {
 
-        next_sparsity_ = std::max<int64_t>(1, llround(expected_sparsity / sparsity_step));
+        int64_t expected_sparsity = sparsities[rank - 1];
+        next_sparsity_ = sparsities[rank - 2];
         auto root = tree_.GetRoot();
-        SparsityTest(x, info, expected_sparsity, sparsity_step, root, rank, delta, settings);
+        SparsityTest(x, info, expected_sparsity, sparsities, root, rank, delta, settings);
         while (!tree_.IsEmpty() && (tree_.LeavesCount() * next_sparsity_ + static_cast<int>(recovered_freq_.size())) <= expected_sparsity) {
             NodePtr v = tree_.GetLightestNode();
             v->AddChildren();
@@ -184,7 +185,7 @@ public:
             }
                 for (auto& node : children) {
                     if (!skip_restore || (!node->Removed() && node->level == info.Dimensions() * info.LogSignalWidth())) {
-                        SparsityTest(x, info, expected_sparsity, sparsity_step, node, rank, delta, settings);
+                        SparsityTest(x, info, expected_sparsity, sparsities, node, rank, delta, settings);
                         // Sometimes errors are too big, and the node is not removed after SparsityTest
                         if (!node->Removed() && node->level == info.Dimensions() * info.LogSignalWidth()) {
                             tree_.RemoveNode(node);
@@ -199,14 +200,14 @@ public:
     }
 
 private:
-    void SparsityTest(const Signal& x, const SignalInfo& info, int64_t expected_sparsity, double sparsity_step,
+    void SparsityTest(const Signal& x, const SignalInfo& info, int64_t expected_sparsity, const std::vector<int>& sparsities,
                                            SplittingTree::NodePtr& node, int rank, IndexGenerator& delta, const TransformSettings& settings) {
         std::optional<FrequencyMap> probable_freq(std::nullopt);
         if (rank == 2) {
             probable_freq = SparseFFT(x, info, next_sparsity_, &tree_, node, total_freq_, delta, settings);
         } else {
             Restorer restorer(&tree_, node, total_freq_);
-            probable_freq = restorer.TryRestore(x, info, next_sparsity_, sparsity_step, rank - 1,
+            probable_freq = restorer.TryRestore(x, info, sparsities, rank - 1,
                                                 delta, settings);
         }
         if (probable_freq) {
@@ -233,11 +234,19 @@ FrequencyMap RecursiveSparseFFT(const Signal& x, const SignalInfo& info, int64_t
     IndexGenerator delta(info, seed);
     NodePtr parent(nullptr);
     std::optional<FrequencyMap> res;
+    double step = pow(sparsity / 1.0, 1. / rank);
+    std::vector<int> sparsities(rank);
+    sparsities[rank - 1] = sparsity;
+    double curspars = sparsity / step;
+    for (int i = rank - 2; i >= 0; --i) {
+        curspars /= step;
+        sparsities[i] = std::max<int>(1, int(curspars));
+    }
     if (rank == 1) {
         res = SparseFFT(x, info, sparsity, nullptr, parent, {}, delta, settings);
     } else {
         Restorer restorer(nullptr, parent, {});
-        res = restorer.TryRestore(x, info, sparsity, pow(sparsity, 1. / rank), rank, delta, settings);
+        res = restorer.TryRestore(x, info, sparsities, rank, delta, settings);
     }
     if (!res) {
         return {};
