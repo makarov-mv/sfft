@@ -66,6 +66,10 @@ public:
         SetFromFlatten(flatten);
     }
 
+    void SetZero() {
+        indices_.assign(indices_.size(), 0);
+    }
+
     // leftmost dimension is highest in the tree
     const int64_t& operator[](int index) const {
         return indices_[index];
@@ -155,8 +159,12 @@ using Node = SplittingTree::Node;
 
 FrequencyMap MapUnion(const FrequencyMap& a, const FrequencyMap& b) {
     FrequencyMap c;
-    c.insert(a.begin(), a.end());
-    c.insert(b.begin(), b.end());
+    for (const auto& w : a) {
+        c[w.first] += w.second;
+    }
+    for (const auto& w : b) {
+        c[w.first] += w.second;
+    }
     return c;
 }
 
