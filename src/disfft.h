@@ -51,6 +51,8 @@ struct TransformSettings {
     bool use_preemptive_tests{true};
     double zero_test_koef{1};
     bool use_comb{true};
+    bool assume_random_phase{false};
+    int random_phase_sparsity_koef{1};
 };
 
 class AlignedVector {
@@ -127,7 +129,7 @@ std::optional<FrequencyMap> SparseFFT(const Signal& x, const SignalInfo& info, i
     FrequencyMap total_freq = known_freq;
     SplittingTree tree(parent_tree, parent_node);
 
-    while (!tree.IsEmpty() && (tree.LeavesCount() + static_cast<int>(recovered_freq.size())) <= expected_sparsity) {
+    while (!tree.IsEmpty() && (settings.assume_random_phase || (tree.LeavesCount() + static_cast<int>(recovered_freq.size())) <= expected_sparsity)) {
         NodePtr node = tree.GetLightestNode();
         if (node->level == info.Dimensions() * info.LogSignalWidth()) {
             auto filter = Filter(tree, node, info);
@@ -154,8 +156,10 @@ std::optional<FrequencyMap> SparseFFT(const Signal& x, const SignalInfo& info, i
             }
         }
     }
-    if ((tree.LeavesCount() + static_cast<int>(recovered_freq.size())) > expected_sparsity) {
-        return std::nullopt;
+    if (!settings.assume_random_phase) {
+        if ((tree.LeavesCount() + static_cast<int>(recovered_freq.size())) > expected_sparsity) {
+            return std::nullopt;
+        }
     }
     return recovered_freq;
 }
@@ -345,7 +349,10 @@ FrequencyMap RecursiveSparseFFT(const Signal& x, const SignalInfo& info, int64_t
     }
     IndexGenerator delta(info, seed);
     NodePtr parent(nullptr);
-    std::optional<FrequencyMap> res;
+    if (settings.assume_random_phase) {
+        rank = 1;
+        sparsity = std::min<int64_t>(sparsity, settings.random_phase_sparsity_koef);
+    }
     double step = pow(sparsity / 1.0, 1. / rank);
     std::vector<int> sparsities(rank);
     sparsities[rank - 1] = sparsity;
@@ -354,6 +361,7 @@ FrequencyMap RecursiveSparseFFT(const Signal& x, const SignalInfo& info, int64_t
         curspars /= step;
         sparsities[i] = std::max<int>(1, int(curspars));
     }
+    std::optional<FrequencyMap> res;
     if (rank == 1) {
         res = SparseFFT(x, info, sparsity, nullptr, parent, prefiltered, delta, settings);
     } else {

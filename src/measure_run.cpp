@@ -44,15 +44,15 @@ void PrintArr(const std::string& name, const std::vector<std::chrono::nanosecond
 }
 
 template <class Func>
-auto RunBenchmark(const std::string& name, int iters, Func function, std::vector<std::chrono::nanoseconds>& res) {
+auto RunBenchmark(const std::string& name, const std::vector<std::vector<complex_t>>& signals, Func function, std::vector<std::chrono::nanoseconds>& res) {
     using clock = std::chrono::system_clock;
     std::cout << name << ": ";
     auto start = clock::now();
-    for (int i = 0; i < iters; ++i) {
-        (void) function(i);
+    for (int i = 0; i < static_cast<int>(signals.size()); ++i) {
+        (void) function(signals[i], i);
     }
     auto dur = clock::now() - start;
-    dur /= iters;
+    dur /= signals.size();
     PrintDur(dur);
     res.push_back(dur);
     std::cout << ", ";
@@ -67,22 +67,28 @@ int main() {
     std::vector<std::chrono::nanoseconds> dur3;
     std::vector<std::chrono::nanoseconds> dur4;
     TransformSettings settings;
-    settings.use_comb = false;
+    settings.use_comb = true;
+    settings.assume_random_phase = true;
+    settings.random_phase_sparsity_koef = 1;
     for (int64_t p = 3; p <= 7; ++p) {
         SignalInfo info{3, 1 << p};
         const int64_t sparsity = 50;
-        auto out = GenRandomSupport(info, sparsity, gen);
+        const int samples = 5;
+        std::vector<std::vector<complex_t>> signals;
         auto runner = FFTWRunner(info, FFTW_BACKWARD);
+        for (int i = 0; i < samples; ++i) {
+            auto out = GenRandomSupport(info, sparsity, gen);
+            signals.emplace_back(runner.Run(out));
+        }
         auto reverse = FFTWRunner(info, FFTW_FORWARD);
-        auto in = runner.Run(out);
-        auto x = DataSignal(info, in.data());
         npow.push_back(p);
         std::cout << "p = " << p << ", ";
-        RunBenchmark("fftw", 5, [&](int){return reverse.Run(in);}, dur_fftw);
-        RunBenchmark("rank 1", 5, [&](int i){return RecursiveSparseFFT(x, info, sparsity, 1, i, settings);}, dur1);
-        RunBenchmark("rank 2", 5, [&](int i){return RecursiveSparseFFT(x, info, sparsity, 2, i, settings);}, dur2);
-        RunBenchmark("rank 3", 5, [&](int i){return RecursiveSparseFFT(x, info, sparsity, 3, i, settings);}, dur3);
-        RunBenchmark("rank 4", 5, [&](int i){return RecursiveSparseFFT(x, info, sparsity, 4, i, settings);}, dur4);
+        using Input = const std::vector<complex_t>&;
+        RunBenchmark("fftw", signals, [&](Input in, int){return reverse.Run(in);}, dur_fftw);
+        RunBenchmark("rank 1", signals, [&](Input in, int i){return RecursiveSparseFFT(DataSignal(info, in.data()), info, sparsity, 1, i, settings);}, dur1);
+//        RunBenchmark("rank 2", signals, [&](Input in, int i){return RecursiveSparseFFT(DataSignal(info, in.data()), info, sparsity, 2, i, settings);}, dur2);
+//        RunBenchmark("rank 3", signals, [&](Input in, int i){return RecursiveSparseFFT(DataSignal(info, in.data()), info, sparsity, 3, i, settings);}, dur3);
+//        RunBenchmark("rank 4", signals, [&](Input in, int i){return RecursiveSparseFFT(DataSignal(info, in.data()), info, sparsity, 4, i, settings);}, dur4);
         std::cout << std::endl;
     }
     std::cout << "p = [\n";
