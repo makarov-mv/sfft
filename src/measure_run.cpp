@@ -86,8 +86,53 @@ public:
     virtual SignalInfo GetInfo(int p) = 0;
 };
 
-class BenchmarkCombinedSupportWithComb : public Benchmark {
+class BenchmarkRandomSupport : public Benchmark {
 public:
+    BenchmarkRandomSupport(bool use_comb) : use_comb_(use_comb) {}
+
+    int Sparsity() override {
+        return 27;
+    }
+
+    std::vector<TransformSettings> PrepareSettings() override {
+        std::vector<TransformSettings> res(5);
+        TransformSettings settings;
+        settings.use_comb = use_comb_;
+        settings.zero_test_koef = 0.03;
+        for (int i = 0; i < 4; ++i) {
+            res[i] = settings;
+        }
+        settings.zero_test_koef = 1;
+        settings.random_phase_sparsity_koef = 1;
+        settings.assume_random_phase = true;
+        res[4] = settings;
+        return res;
+    }
+
+    std::vector<complex_t> GenSignal(const SignalInfo& info, int64_t sparsity, std::mt19937_64& gen) override {
+        return GenRandomSupport(info, sparsity, gen);
+    }
+
+    int Start() override {
+        return 3;
+    }
+
+    int End() override {
+        return 7;
+    }
+
+    SignalInfo GetInfo(int p) override {
+        return {3, 1 << p};
+    }
+
+private:
+    bool use_comb_;
+};
+
+class BenchmarkCombinedSupport : public Benchmark {
+public:
+    BenchmarkCombinedSupport(bool use_comb) : use_comb_(use_comb) {}
+
     int Sparsity() override {
         return 32;
     }
@@ -95,7 +140,7 @@ public:
     std::vector<TransformSettings> PrepareSettings() override {
         std::vector<TransformSettings> res(5);
         TransformSettings settings;
-        settings.use_comb = true;
+        settings.use_comb = use_comb_;
         settings.zero_test_koef = 0.5;
         for (int i = 0; i < 4; ++i) {
             res[i] = settings;
@@ -122,6 +167,9 @@ public:
     SignalInfo GetInfo(int p) override {
         return {3, 1 << p};
     }
+
+private:
+    bool use_comb_;
 };
 
 class Benchmark4DCombSupportWithComb : public Benchmark {
@@ -184,12 +232,12 @@ int main() {
     std::vector<std::chrono::nanoseconds> dur3;
     std::vector<std::chrono::nanoseconds> dur4;
     std::vector<std::chrono::nanoseconds> dur_phase;
-    auto bench = Benchmark4DCombSupportWithComb(true);
+    auto bench = BenchmarkRandomSupport(false);
 
     for (int64_t p = bench.Start(); p <= bench.End(); ++p) {
         SignalInfo info = bench.GetInfo(p);
         const int64_t sparsity = bench.Sparsity();
-        const int samples = 3;
+        const int samples = 100;
 
         auto settings = bench.PrepareSettings();
 

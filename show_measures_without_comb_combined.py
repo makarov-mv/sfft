@@ -11,46 +11,46 @@ p = [
     7,
 ]
 fftw = [
-    2817,
-    24230,
-    279066,
-    3860319,
-    57886542,
+    2514,
+    22979,
+    225030,
+    3664961,
+    53502254,
 ]
 rank1 = [
-    23047176,
-    37546542,
-    55125746,
-    91882079,
-    184553587,
+    12001927,
+    20316605,
+    31955925,
+    49560701,
+    88525859,
 ]
 rank2 = [
-    25157936,
-    28470570,
-    32722411,
-    54537677,
-    58752167,
+    13976127,
+    15905738,
+    19881683,
+    23693780,
+    28744511,
 ]
 rank3 = [
-    22894221,
-    27141661,
-    32155919,
-    72939077,
-    58776871,
+    15203625,
+    18066933,
+    23497032,
+    28070731,
+    32884768,
 ]
 rank4 = [
-    29923491,
-    40406856,
-    45376116,
-    122315533,
-    87406394,
+    22781848,
+    28820350,
+    38534212,
+    46265741,
+    55707130,
 ]
 rand_phase = [
-    3194544,
-    7908017,
-    9427138,
-    18267691,
-    68042355,
+    4384830,
+    8182715,
+    17019835,
+    18383747,
+    29895710,
 ]
 
 graphs = {
@@ -62,11 +62,14 @@ graphs = {
     r'disFT, random phase' : rand_phase,
 }
 
+ax = plt.axes()
+ax.set_xticks(p)
+
 for gr in graphs.items():
     plt.plot(p, np.array(gr[1]) / milsec, label=gr[0])
 
 plt.legend()
-plt.title("Comparison of algorithms, 3 dimensions,\n sparsity=27, without comb filter, random support + Dirac comb")
+plt.title("Comparison of algorithms, 3 dimensions,\n sparsity=32, without comb filter, random support + Dirac comb")
 plt.xlabel(r"$\log_2 n$")
 plt.ylabel("ms")
 plt.grid()

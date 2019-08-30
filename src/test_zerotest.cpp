@@ -33,7 +33,7 @@ TEST_CASE("ZeroTest 1024 * 1024 32 comb") {
     const int64_t sparsity = 32;
     std::vector<complex_t> out(info.SignalSize());
     for (int i = 0; i < info.SignalSize(); i += info.SignalSize() / sparsity) {
-        out[i] = 1;
+        out[i + 1] = CalcKernel(i * sparsity / info.SignalWidth(), sparsity);
     }
     auto runner = FFTWRunner(info, FFTW_BACKWARD);
     auto in = runner.Run(out);
@@ -137,20 +137,20 @@ TEST_CASE("ZeroTest 3 128 32 combined") {
 
     for (int rank = 1; rank <= 4; ++rank) {
         TransformSettings settings;
-        std::vector<double> koefs = {0.3, 0.1, 0.06, 0.05, 0.03};
+        std::vector<double> koefs = {0.03};
         for (auto koef : koefs) {
-            settings.use_comb = true;
+            settings.use_comb = false;
             settings.zero_test_koef = koef;
             const int max_iter = 100;
             int ok = 0;
             for (int i = 0; i < max_iter; ++i) {
                 out.assign(out.size(), 0);
-                for (int j = 0; j < sparsity / 2; ++j) {
+                for (int j = 0; j < sparsity; ++j) {
                     out[dist(gen)] = 1;
                 }
-                for (int j = 0; j < info.SignalSize(); j += info.SignalSize() / (sparsity / 2)) {
-                    out[j] = 1;
-                }
+//                for (int j = 0; j < info.SignalSize(); j += info.SignalSize() / (sparsity / 2)) {
+//                    out[j] = 1;
+//                }
                 auto in = runner.Run(out);
                 auto x = DataSignal(info, in.data());
                 ok += RunSFFT(x, info, sparsity, out, rank, i, settings);
