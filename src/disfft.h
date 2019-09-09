@@ -26,6 +26,10 @@ public:
         return values_[key.Flatten()];
     }
 
+    const complex_t* Data() const {
+        return values_;
+    }
+
 private:
     const SignalInfo info_;
     const complex_t* values_;

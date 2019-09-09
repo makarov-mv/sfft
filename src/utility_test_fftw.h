@@ -15,11 +15,10 @@ public:
         fftw_destroy_plan(plan_);
         fftw_free(in_);
         fftw_free(out_);
-        fftw_cleanup();
+//        fftw_cleanup();
     }
 
-    std::vector<complex_t> Run(const std::vector<complex_t>& x) {
-        assert(static_cast<int64_t>(x.size()) == info_.SignalSize());
+    std::vector<complex_t> Run(const complex_t* x) {
         for (int i = 0; i < info_.SignalSize(); ++i) {
             in_[i][0] = x[i].real();
             in_[i][1] = x[i].imag();
@@ -35,6 +34,11 @@ public:
             }
         }
         return res;
+    }
+
+    std::vector<complex_t> Run(const std::vector<complex_t>& x) {
+        assert(static_cast<int64_t>(x.size()) == info_.SignalSize());
+        return Run(x.data());
     }
 
 private:
