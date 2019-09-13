@@ -12,10 +12,13 @@ def make_graph(name, title, p, algs, data, extra_data_path=''):
 
     if extra_data_path:
         with open(extra_data_path, 'r') as f:
-            label = f.readline().strip()
-            p1 = list(map(int, f.readline().split()))
-            v1 = np.array(list(map(int, f.readline().split())))
-            plt.plot(p1, v1 / milsec, label=label)
+            label = f.readline()
+            while len(label) > 1:
+                label = label.strip()
+                p1 = list(map(int, f.readline().split()))
+                v1 = np.array(list(map(int, f.readline().split())))
+                plt.plot(p1, v1 / milsec, label=label)
+                label = f.readline()
 
     plt.legend()
     plt.title(title)

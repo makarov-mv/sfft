@@ -17,6 +17,16 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 make
 ```
 
+If you want to add `sfft v.1-v.2` to graphs, compile them by running:
+
+```
+cd sfft-v1v2
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make
+```
+
 Now you can run one of the `test_*` executables in `build` directory.
 
 # Making graphs
