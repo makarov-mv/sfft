@@ -2,13 +2,13 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 
-def make_graph(name, title, p, algs, data, extra_data_path=''):
+def make_graph(name, title, p, algs, algs_names, data, extra_data_path=''):
     ax = plt.axes()
     ax.set_xticks(p)
     milsec = 1e6
 
     for alg in algs:
-        plt.plot(p, np.array(data[alg]) / milsec, label=alg)
+        plt.plot(p, np.array(data[alg]) / milsec, label=algs_names[alg])
 
     if extra_data_path:
         with open(extra_data_path, 'r') as f:

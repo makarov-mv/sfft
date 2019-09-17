@@ -22,6 +22,15 @@ alg_settings = {
     'random_phase' : {'use_comb' : args.use_comb_filter, 'assume_random_phase' : 1}
 }
 
+plot_names = {
+    'fftw': 'FFTW',
+    'recursive 1' : r'disFT, $n^{3}$',
+    'recursive 2' : r'disFT, $n^{2\frac{1}{2}}$',
+    'recursive 3' : r'disFT, $n^{2\frac{1}{3}}$',
+    'recursive 4' : r'disFT, $n^{2\frac{1}{4}}$',
+    'random_phase' : r'disFT, random phase'
+}
+
 proc = subprocess.Popen(args.path, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='ascii')
 output = io.StringIO()
 
@@ -70,4 +79,4 @@ if not args.no_graph:
     title = 'Comparison of algorithms, {} dimensions, {} signal, sparsity={}\n{} comb filter'.format(
         args.dimensions, args.signal_type, args.sparsity, 'with' if args.use_comb_filter else 'without'
     )
-    experiment_utils.make_graph(args.output, title, p, algs, results, args.extra_data)
+    experiment_utils.make_graph(args.output, title, p, algs, plot_names, results, args.extra_data)
