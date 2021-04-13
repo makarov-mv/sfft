@@ -62,17 +62,20 @@ struct TransformSettings {
 class AlignedVector {
 public:
     AlignedVector(int n) {
-        if (n % 2 == 1) {
-            n += 1;
-        }
-        data_ = (double *) std::aligned_alloc(16, n * sizeof(double));
-        for (int i = 0; i < n; ++i) {
-            data_[i] = 0;
+        data_ = nullptr;
+        realloc_data(n);
+    }
+
+    void expand(int n) {
+        if (n > size_) {
+            realloc_data(n);
         }
     }
 
     ~AlignedVector() {
-        std::free(data_);
+        if (data_ != nullptr) {
+            std::free(data_);
+        }
     }
 
     double& operator[](int i) {
@@ -80,7 +83,23 @@ public:
     }
 
 private:
+    int size_;
     double* data_;
+
+    void realloc_data(int n) {
+        if (data_ != nullptr) {
+            std::free(data_);
+            data_ = nullptr;
+        }
+        if (n % 2 == 1) {
+            n += 1;
+        }
+        data_ = (double *) std::malloc(n * sizeof(double));
+        for (int i = 0; i < n; ++i) {
+            data_[i] = 0;
+        }
+        size_ = n;
+    }
 };
 
 bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const SplittingTree& tree,
@@ -96,9 +115,12 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
 
     Key diff(info);
     Key time(info);
-    AlignedVector phi(freq_precalc.size());
-    AlignedVector x_kernel(freq_precalc.size());
-    AlignedVector y_kernel(freq_precalc.size());
+    static AlignedVector phi(freq_precalc.size());
+    phi.expand(freq_precalc.size());
+    static AlignedVector x_kernel(freq_precalc.size());
+    x_kernel.expand(freq_precalc.size());
+    static AlignedVector y_kernel(freq_precalc.size());
+    y_kernel.expand(freq_precalc.size());
     double phi_koef = 2 * PI / info.SignalWidth();
 
     for (int64_t iter = 0; iter < max_iters; ++iter) {
@@ -191,7 +213,7 @@ public:
                 }
             } else {
                 v->AddChildren();
-                std::array<NodePtr, 2> children({v->left, v->right});
+                std::vector<NodePtr> children({v->left, v->right});
                 bool skip_restore = false;
                 if (settings.use_preemptive_tests) {
                     for (auto& node : children) {
