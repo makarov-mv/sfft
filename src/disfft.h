@@ -126,12 +126,19 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
     for (int64_t iter = 0; iter < max_iters; ++iter) {
         delta.Next(time);
         complex_t recovered_at_time = 0;
-        for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
-            phi[j] = (freq_precalc[j].first * time) * phi_koef;
-        }
-        for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
-            x_kernel[j] = cos(phi[j]);
-            y_kernel[j] = sin(phi[j]);
+        if (info.IsSmallSignalWidth()) {
+            for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
+                x_kernel[j] = GetTableCos(freq_precalc[j].first * time, info.SignalWidth());
+                y_kernel[j] = GetTableSin(freq_precalc[j].first * time, info.SignalWidth());
+            }
+        } else {
+            for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
+                phi[j] = (freq_precalc[j].first * time) * phi_koef;
+            }
+            for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
+                x_kernel[j] = cos(phi[j]);
+                y_kernel[j] = sin(phi[j]);
+            }
         }
         for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
             recovered_at_time += complex_t(x_kernel[j], y_kernel[j]) * freq_precalc[j].second;
@@ -367,6 +374,9 @@ FrequencyMap RecursiveSparseFFT(const Signal& x, const SignalInfo& info, int64_t
     assert(info.SignalSize() > 1);
     if (sparsity == 0) {
         return {};
+    }
+    if (info.IsSmallSignalWidth()) {
+        PrepareCosSinTables(info.SignalWidth());
     }
     FrequencyMap prefiltered;
     if (settings.use_comb) {

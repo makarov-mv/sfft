@@ -1,5 +1,6 @@
 #include "iostream"
 #include "chrono"
+#include "map"
 #include "disfft.h"
 #include "utility_test_fftw.h"
 
@@ -429,7 +430,7 @@ public:
         return info_.at(iter);
     }
 
-    std::unordered_map<std::string, std::unique_ptr<Algorithm>>& GetAlgs() {
+    std::map<std::string, std::unique_ptr<Algorithm>>& GetAlgs() {
         return algs_;
     }
 
@@ -452,13 +453,13 @@ private:
     std::vector<int> sparsity_;
     std::vector<std::unique_ptr<SignalGenerator> > generator_;
     std::unordered_map<std::string, std::vector<TransformSettings> > settings_;
-    std::unordered_map<std::string, std::unique_ptr<Algorithm>> algs_;
+    std::map<std::string, std::unique_ptr<Algorithm>> algs_;
 };
 
 int main() {
     std::mt19937_64 gen(123423);
     std::vector<int64_t> npow;
-    std::unordered_map<std::string, std::vector<std::chrono::nanoseconds>> dur;
+    std::map<std::string, std::vector<std::chrono::nanoseconds>> dur;
     StreamBenchmark bench(std::cin);
     for (auto& w : bench.GetAlgs()) {
         dur[w.first] = {};
