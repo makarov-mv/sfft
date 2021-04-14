@@ -65,7 +65,7 @@ public:
         if (n % 2 == 1) {
             n += 1;
         }
-        data_ = (double *) std::aligned_alloc(16, n * sizeof(double));
+        data_ = (double *) std::calloc(16, n * sizeof(double));
         for (int i = 0; i < n; ++i) {
             data_[i] = 0;
         }
@@ -191,7 +191,7 @@ public:
                 }
             } else {
                 v->AddChildren();
-                std::array<NodePtr, 2> children({v->left, v->right});
+                std::vector<NodePtr> children({v->left, v->right});
                 bool skip_restore = false;
                 if (settings.use_preemptive_tests) {
                     for (auto& node : children) {
