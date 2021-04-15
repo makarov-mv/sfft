@@ -125,7 +125,6 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
 
     for (int64_t iter = 0; iter < max_iters; ++iter) {
         delta.Next(time);
-        complex_t recovered_at_time = 0;
         if (info.IsSmallSignalWidth()) {
             for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
                 x_kernel[j] = GetTableCos(freq_precalc[j].first * time, info.SignalWidth());
@@ -140,14 +139,16 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
                 y_kernel[j] = sin(phi[j]);
             }
         }
+        double recovered_at_time = 0;
         for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
-            recovered_at_time += complex_t(x_kernel[j], y_kernel[j]) * freq_precalc[j].second;
+            recovered_at_time += x_kernel[j] * freq_precalc[j].second.real() - y_kernel[j] * freq_precalc[j].second.imag();
         }
         recovered_at_time /= static_cast<double>(info.SignalSize());
-        complex_t filtered_at_time = 0;
+        double filtered_at_time = 0;
         for (const auto& value: filter.FilterTime()) {
             diff.StoreDifference(time, value.first);
-            filtered_at_time += value.second * x.ValueAtTime(diff);
+            auto sig_val = x.ValueAtTime(diff);
+            filtered_at_time += value.second.real() * sig_val.real() - value.second.imag() * sig_val.imag();
         }
         if (NonZero(filtered_at_time - recovered_at_time)) {
             return true;

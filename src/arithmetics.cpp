@@ -13,10 +13,8 @@ void PrepareCosSinTables(int width) {
 }
 
 double GetTableCos(int64_t n, int width) {
-    n %= width;
-    return cos_table[n];
+    return cos_table[n & (width - 1)];
 }
 double GetTableSin(int64_t n, int width) {
-    n %= width;
-    return sin_table[n];
+    return sin_table[n & (width - 1)];
 }
