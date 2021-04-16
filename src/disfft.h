@@ -152,7 +152,19 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
             diff.StoreDifference(time, filter.FilterTime()[j].first);
             filtered_sum[j] += x.ValueAtTime(diff);
         }
-
+        if (iter < 1) {
+            complex_t total_sum = 0;
+            for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
+                total_sum += recovered_sum[j] * freq_precalc[j].second;
+            }
+            total_sum /= static_cast<double>(info.SignalSize());
+            for (int j =0; j < static_cast<int>(filter.FilterTime().size()); ++j) {
+                total_sum -= filtered_sum[j] * filter.FilterTime()[j].second;
+            }
+            if (NonZero(total_sum)) {
+                return true;
+            }
+        }
     }
     complex_t total_sum = 0;
     for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
