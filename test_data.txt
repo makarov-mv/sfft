@@ -1,0 +1,144 @@
+samples: 30
+6
+fftw random_phase recursive 1 recursive 2 recursive 3 recursive 4
+5
+id: 3
+info: 3 3
+sparsity: 27
+signal: random
+fftw
+    2
+    use_comb 0
+    zero_test_coef 1
+random_phase
+    2
+    use_comb 0
+    assume_random_phase 1
+recursive 1
+    2
+    use_comb 0
+    zero_test_coef 1
+recursive 2
+    2
+    use_comb 0
+    zero_test_coef 1
+recursive 3
+    2
+    use_comb 0
+    zero_test_coef 1
+recursive 4
+    2
+    use_comb 0
+    zero_test_coef 1
+id: 4
+info: 3 4
+sparsity: 27
+signal: random
+fftw
+    2
+    use_comb 0
+    zero_test_coef 1
+random_phase
+    2
+    use_comb 0
+    assume_random_phase 1
+recursive 1
+    2
+    use_comb 0
+    zero_test_coef 1
+recursive 2
+    2
+    use_comb 0
+    zero_test_coef 1
+recursive 3
+    2
+    use_comb 0
+    zero_test_coef 1
+recursive 4
+    2
+    use_comb 0
+    zero_test_coef 1
+id: 5
+info: 3 5
+sparsity: 27
+signal: random
+fftw
+    2
+    use_comb 0
+    zero_test_coef 1
+random_phase
+    2
+    use_comb 0
+    assume_random_phase 1
+recursive 1
+    2
+    use_comb 0
+    zero_test_coef 1
+recursive 2
+    2
+    use_comb 0
+    zero_test_coef 1
+recursive 3
+    2
+    use_comb 0
+    zero_test_coef 1
+recursive 4
+    2
+    use_comb 0
+    zero_test_coef 1
+id: 6
+info: 3 6
+sparsity: 27
+signal: random
+fftw
+    2
+    use_comb 0
+    zero_test_coef 1
+random_phase
+    2
+    use_comb 0
+    assume_random_phase 1
+recursive 1
+    2
+    use_comb 0
+    zero_test_coef 1
+recursive 2
+    2
+    use_comb 0
+    zero_test_coef 1
+recursive 3
+    2
+    use_comb 0
+    zero_test_coef 1
+recursive 4
+    2
+    use_comb 0
+    zero_test_coef 1
+id: 7
+info: 3 7
+sparsity: 27
+signal: random
+fftw
+    2
+    use_comb 0
+    zero_test_coef 1
+random_phase
+    2
+    use_comb 0
+    assume_random_phase 1
+recursive 1
+    2
+    use_comb 0
+    zero_test_coef 1
+recursive 2
+    2
+    use_comb 0
+    zero_test_coef 1
+recursive 3
+    2
+    use_comb 0
+    zero_test_coef 1
+recursive 4
+    2
+    use_comb 0
+    zero_test_coef 1
