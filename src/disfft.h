@@ -121,6 +121,12 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
     x_kernel.expand(freq_precalc.size());
     static AlignedVector y_kernel(freq_precalc.size());
     y_kernel.expand(freq_precalc.size());
+    static std::vector<complex_t> recovered_sum;
+    recovered_sum.clear();
+    recovered_sum.assign(freq_precalc.size(), 0);
+    static std::vector<complex_t> filtered_sum;
+    filtered_sum.clear();
+    filtered_sum.assign(filter.FilterTime().size(), 0);
     double phi_koef = 2 * PI / info.SignalWidth();
 
     for (int64_t iter = 0; iter < max_iters; ++iter) {
@@ -139,20 +145,37 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
                 y_kernel[j] = sin(phi[j]);
             }
         }
-        double recovered_at_time = 0;
         for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
-            recovered_at_time += x_kernel[j] * freq_precalc[j].second.real() - y_kernel[j] * freq_precalc[j].second.imag();
+            recovered_sum[j] += complex_t(x_kernel[j], y_kernel[j]);
         }
-        recovered_at_time /= static_cast<double>(info.SignalSize());
-        double filtered_at_time = 0;
-        for (const auto& value: filter.FilterTime()) {
-            diff.StoreDifference(time, value.first);
-            auto sig_val = x.ValueAtTime(diff);
-            filtered_at_time += value.second.real() * sig_val.real() - value.second.imag() * sig_val.imag();
+        for (int j =0; j < static_cast<int>(filter.FilterTime().size()); ++j) {
+            diff.StoreDifference(time, filter.FilterTime()[j].first);
+            filtered_sum[j] += x.ValueAtTime(diff);
         }
-        if (NonZero(filtered_at_time - recovered_at_time)) {
-            return true;
+        if (iter < 1) {
+            complex_t total_sum = 0;
+            for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
+                total_sum += recovered_sum[j] * freq_precalc[j].second;
+            }
+            total_sum /= static_cast<double>(info.SignalSize());
+            for (int j =0; j < static_cast<int>(filter.FilterTime().size()); ++j) {
+                total_sum -= filtered_sum[j] * filter.FilterTime()[j].second;
+            }
+            if (NonZero(total_sum)) {
+                return true;
+            }
         }
+    }
+    complex_t total_sum = 0;
+    for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
+        total_sum += recovered_sum[j] * freq_precalc[j].second;
+    }
+    total_sum /= static_cast<double>(info.SignalSize());
+    for (int j =0; j < static_cast<int>(filter.FilterTime().size()); ++j) {
+        total_sum -= filtered_sum[j] * filter.FilterTime()[j].second;
+    }
+    if (NonZero(total_sum)) {
+        return true;
     }
     return false;
 }
