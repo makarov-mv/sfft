@@ -1,39 +1,15 @@
 #pragma once
 
 #include "filter.h"
+#include "signal.h"
 #include <algorithm>
 #include <vector>
 #include <initializer_list>
 #include "random"
 #include "optional"
 #include "fftw3.h"
+#include "projection_recovery.h"
 
-class Signal {
-public:
-    virtual ~Signal() = default;
-
-    virtual complex_t ValueAtTime(const Key& key) const = 0;
-};
-
-class DataSignal: public Signal {
-public:
-    DataSignal(const SignalInfo& info, const complex_t* v):
-            info_(info),
-            values_(v) {
-    }
-
-    complex_t ValueAtTime(const Key& key) const override {
-        return values_[key.Flatten()];
-    }
-
-    const complex_t* Data() const {
-        return values_;
-    }
-
-private:
-    const SignalInfo info_;
-    const complex_t* values_;
-};
 
 class IndexGenerator {
 public:
@@ -57,6 +33,7 @@ struct TransformSettings {
     bool use_comb{true};
     bool assume_random_phase{false};
     int random_phase_sparsity_koef{1};
+    bool use_projection_recovery{true};
 };
 
 class AlignedVector {
@@ -406,6 +383,13 @@ FrequencyMap RecursiveSparseFFT(const Signal& x, const SignalInfo& info, int64_t
     if (settings.use_comb) {
         CombFiltration(x, info, sparsity, prefiltered);
         sparsity += prefiltered.size();
+    }
+    if (settings.use_projection_recovery) {
+        // PFT is assumed to be always correct, therefore we can just overwrite frequencies and not change the sparsity
+        auto res = ProjectionFT(x, info, 2);
+        for (const auto& w: res) {
+            prefiltered[w.first] = w.second;
+        }
     }
     IndexGenerator delta(info, seed);
     NodePtr parent(nullptr);
