@@ -34,6 +34,7 @@ FrequencyMap MapUnion(const FrequencyMap& a, const FrequencyMap& b) {
     return c;
 }
 
+
 class Filter {
 public:
 
@@ -49,6 +50,8 @@ public:
             assert(current_period >= 0 && current_period < info.Dimensions());
             auto phase = CalcKernel(-label_[current_period], 1 << subtree_level);
             phase_.push_back(phase);
+            current_period_.push_back(current_period);
+            SubtreeLevel_.push_back(subtree_level);
             for (auto it : filter) {
                 Key index = it.first;
                 updated_filter[index] = (MapFilterValueAtTime(filter, index) + phase * MapFilterValueAtTime(filter, index.IncreaseAt(current_period, shift))) / 2.;
@@ -58,7 +61,7 @@ public:
             updated_filter.clear();
         }
         filter_.reserve(filter.size());
-        filter_.insert(filter_.end(), std::make_move_iterator(filter.begin()), std::make_move_iterator(filter.end()));
+        filter_.insert(filter_.end(), std::make_move_iterator(filter.begin()), std::make_move_iterator(filter.end()));        
     }
 
     const std::vector<std::pair<Key, complex_t>>& FilterTime() const {
@@ -68,8 +71,8 @@ public:
     complex_t FilterFrequency(const Key& key) const {
         complex_t freq = 1.;
         for (size_t i = 0; i < path_.size(); ++i) {
-            int current_period = CalcCurrentPeriod(i);
-            freq *= (1. + phase_[i] * CalcKernel(key[current_period], 1 << CalcSubtreeLevel(i))) / 2.;
+            //int current_period = CalcCurrentPeriod(i);
+            freq *= (1. + phase_[i] * CalcKernel(key[current_period_[i]], 1 << SubtreeLevel_[i])) / 2.;
         }
         return freq;
     }
@@ -111,5 +114,7 @@ private:
     int period_size_;
     std::vector<int> path_;
     std::vector<complex_t> phase_;
+    std::vector<int> current_period_;
+    std::vector<int64_t> SubtreeLevel_;
     std::vector<std::pair<Key, complex_t>> filter_;
 };

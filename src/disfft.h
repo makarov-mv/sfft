@@ -9,6 +9,8 @@
 #include "optional"
 #include "fftw3.h"
 #include "projection_recovery.h"
+#include "iostream"
+#include <typeinfo>
 
 
 class IndexGenerator {
@@ -82,77 +84,64 @@ private:
 bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const SplittingTree& tree,
               const SplittingTree::NodePtr& cone_node, const SignalInfo& info, int64_t sparsity, IndexGenerator& delta,
               const TransformSettings& settings) {
+    using std::chrono::high_resolution_clock;
+    using std::chrono::duration_cast;
+    using std::chrono::microseconds;
     auto filter = Filter(tree, cone_node, info);
+        
     int64_t max_iters = std::max<int64_t>(llround(settings.zero_test_koef * sparsity * log2(info.SignalSize())), 1);
     std::vector<std::pair<Key, complex_t>> freq_precalc;
     freq_precalc.reserve(recovered_freq.size());
     for (const auto& freq: recovered_freq) {
         freq_precalc.emplace_back(freq.first, freq.second * filter.FilterFrequency(freq.first));
     }
-
+        
     Key diff(info);
     Key time(info);
-    static AlignedVector phi(freq_precalc.size());
-    phi.expand(freq_precalc.size());
-    static AlignedVector x_kernel(freq_precalc.size());
-    x_kernel.expand(freq_precalc.size());
-    static AlignedVector y_kernel(freq_precalc.size());
-    y_kernel.expand(freq_precalc.size());
-    static std::vector<complex_t> recovered_sum;
-    recovered_sum.clear();
-    recovered_sum.assign(freq_precalc.size(), 0);
-    static std::vector<complex_t> filtered_sum;
-    filtered_sum.clear();
-    filtered_sum.assign(filter.FilterTime().size(), 0);
+    //static AlignedVector phi(freq_precalc.size());
+    //phi.expand(freq_precalc.size());
+    
+    //static AlignedVector x_kernel(freq_precalc.size());
+    //x_kernel.expand(freq_precalc.size());
+    //static AlignedVector y_kernel(freq_precalc.size());
+    //y_kernel.expand(freq_precalc.size());
+    //static std::vector<complex_t> recovered_sum;
+    //recovered_sum.clear();
+    //recovered_sum.assign(freq_precalc.size(), 0);
+    //static std::vector<complex_t> filtered_sum;
+    //filtered_sum.clear();
+    //filtered_sum.assign(filter.FilterTime().size(), 0);
     double phi_koef = 2 * PI / info.SignalWidth();
-
+    
+    complex_t total_sum = 0;
+    //complex_t recovered_sum;
+    //complex_t filtered_sum;
+    
     for (int64_t iter = 0; iter < max_iters; ++iter) {
         delta.Next(time);
+        
         if (info.IsSmallSignalWidth()) {
             for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
-                x_kernel[j] = GetTableCos(freq_precalc[j].first * time, info.SignalWidth());
-                y_kernel[j] = GetTableSin(freq_precalc[j].first * time, info.SignalWidth());
+                complex_t recovered_sum = complex_t(GetTableCos(freq_precalc[j].first * time, info.SignalWidth()), GetTableSin(freq_precalc[j].first * time, info.SignalWidth()));
+                total_sum += recovered_sum * freq_precalc[j].second;
             }
         } else {
             for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
-                phi[j] = (freq_precalc[j].first * time) * phi_koef;
-            }
-            for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
-                x_kernel[j] = cos(phi[j]);
-                y_kernel[j] = sin(phi[j]);
+                complex_t recovered_sum = complex_t(cos((freq_precalc[j].first * time) * phi_koef), sin((freq_precalc[j].first * time) * phi_koef));
+                total_sum += recovered_sum * freq_precalc[j].second;
             }
         }
-        for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
-            recovered_sum[j] += complex_t(x_kernel[j], y_kernel[j]);
-        }
+                
+        total_sum /= static_cast<double>(info.SignalSize());
+        
         for (int j =0; j < static_cast<int>(filter.FilterTime().size()); ++j) {
             diff.StoreDifference(time, filter.FilterTime()[j].first);
-            filtered_sum[j] += x.ValueAtTime(diff);
+            complex_t filtered_sum = x.ValueAtTime(diff);
+            total_sum -= filtered_sum * filter.FilterTime()[j].second;
         }
-        if (iter < 1) {
-            complex_t total_sum = 0;
-            for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
-                total_sum += recovered_sum[j] * freq_precalc[j].second;
-            }
-            total_sum /= static_cast<double>(info.SignalSize());
-            for (int j =0; j < static_cast<int>(filter.FilterTime().size()); ++j) {
-                total_sum -= filtered_sum[j] * filter.FilterTime()[j].second;
-            }
-            if (NonZero(total_sum)) {
-                return true;
-            }
+        if (NonZero(total_sum)) {
+            return true;
         }
-    }
-    complex_t total_sum = 0;
-    for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
-        total_sum += recovered_sum[j] * freq_precalc[j].second;
-    }
-    total_sum /= static_cast<double>(info.SignalSize());
-    for (int j =0; j < static_cast<int>(filter.FilterTime().size()); ++j) {
-        total_sum -= filtered_sum[j] * filter.FilterTime()[j].second;
-    }
-    if (NonZero(total_sum)) {
-        return true;
     }
     return false;
 }
