@@ -171,10 +171,10 @@ std::optional<FrequencyMap> SparseFFT(const Signal& x, const SignalInfo& info, i
             tree.RemoveNode(node);
         } else {
             node->AddChildren();
-            if (!ZeroTest(x, total_freq, tree, node->left, info, expected_sparsity, delta, settings)) {
+            if (!ZeroTest(x, total_freq, tree, node->left, info, expected_sparsity - (tree.LeavesCount()-1 + static_cast<int>(recovered_freq.size())), delta, settings)) {
                 tree.RemoveNode(node->left);
             }
-            if (!ZeroTest(x, total_freq, tree, node->right, info, expected_sparsity, delta, settings)) {
+            if (!ZeroTest(x, total_freq, tree, node->right, info, expected_sparsity -(tree.LeavesCount()-1 + static_cast<int>(recovered_freq.size())), delta, settings)) {
                 tree.RemoveNode(node->right);
             }
         }
@@ -214,7 +214,7 @@ public:
                 bool skip_restore = false;
                 if (settings.use_preemptive_tests) {
                     for (auto& node : children) {
-                        if (!ZeroTest(x, total_freq_, tree_, node, info, expected_sparsity, delta, settings)) {
+                        if (!ZeroTest(x, total_freq_, tree_, node, info, expected_sparsity - ((tree_.LeavesCount()-1) * next_sparsity_ + static_cast<int>(recovered_freq_.size())), delta, settings)) {
                             skip_restore = true;
                             tree_.RemoveNode(node);
                         }
@@ -246,7 +246,7 @@ private:
         }
         if (probable_freq) {
             auto new_total_freq = MapUnion(probable_freq.value(), total_freq_);
-            if (!ZeroTest(x, new_total_freq, tree_, node, info, expected_sparsity, delta, settings)) {
+            if (!ZeroTest(x, new_total_freq, tree_, node, info, expected_sparsity - ((tree_.LeavesCount()-1) * next_sparsity_ + static_cast<int>(recovered_freq_.size())), delta, settings)) {
                 tree_.RemoveNode(node);
                 recovered_freq_ = MapUnion(recovered_freq_, probable_freq.value());
                 total_freq_.swap(new_total_freq);
@@ -368,6 +368,8 @@ FrequencyMap RecursiveSparseFFT(const Signal& x, const SignalInfo& info, int64_t
     if (info.IsSmallSignalWidth()) {
         PrepareCosSinTables(info.SignalWidth());
     }
+    
+    
     FrequencyMap prefiltered;
     if (settings.use_comb) {
         CombFiltration(x, info, sparsity, prefiltered);
@@ -395,6 +397,7 @@ FrequencyMap RecursiveSparseFFT(const Signal& x, const SignalInfo& info, int64_t
         sparsities[i] = std::max<int>(1, int(curspars));
     }
     std::optional<FrequencyMap> res;
+        
     if (rank == 1) {
         res = SparseFFT(x, info, sparsity, nullptr, parent, prefiltered, delta, settings);
     } else {
