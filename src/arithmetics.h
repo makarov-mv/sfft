@@ -6,10 +6,11 @@
 
 using complex_t  = std::complex<double>;
 
+
 #define _USE_MATH_DEFINES
 const double PI = M_PI;
 const complex_t I = complex_t(0, 1);
-const double EPS = 1e-7;
+const double EPS = 1e-9;
 
 inline complex_t CalcKernel(double power, double base) {
     double phi = 2 * PI * power / base;

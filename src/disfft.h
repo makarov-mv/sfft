@@ -11,6 +11,7 @@
 #include "projection_recovery.h"
 #include "iostream"
 #include <typeinfo>
+#include <random>
 
 
 class IndexGenerator {
@@ -84,9 +85,7 @@ private:
 bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const SplittingTree& tree,
               const SplittingTree::NodePtr& cone_node, const SignalInfo& info, int64_t sparsity, IndexGenerator& delta,
               const TransformSettings& settings) {
-    using std::chrono::high_resolution_clock;
-    using std::chrono::duration_cast;
-    using std::chrono::microseconds;
+
     auto filter = Filter(tree, cone_node, info);
         
     int64_t max_iters = std::max<int64_t>(llround(settings.zero_test_koef * sparsity * log2(info.SignalSize())), 1);
@@ -98,6 +97,11 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
         
     Key diff(info);
     Key time(info);
+    
+    std::random_device rd{};
+    std::mt19937 gen{rd()};
+    std::normal_distribution<> d{0.,1.};
+
     //static AlignedVector phi(freq_precalc.size());
     //phi.expand(freq_precalc.size());
     
@@ -105,13 +109,14 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
     //x_kernel.expand(freq_precalc.size());
     //static AlignedVector y_kernel(freq_precalc.size());
     //y_kernel.expand(freq_precalc.size());
-    //static std::vector<complex_t> recovered_sum;
-    //recovered_sum.clear();
-    //recovered_sum.assign(freq_precalc.size(), 0);
-    //static std::vector<complex_t> filtered_sum;
-    //filtered_sum.clear();
-    //filtered_sum.assign(filter.FilterTime().size(), 0);
+    static std::vector<complex_t> recovered_sum;
+    recovered_sum.clear();
+    recovered_sum.assign(freq_precalc.size(), 0);
+    static std::vector<complex_t> filtered_sum;
+    filtered_sum.clear();
+    filtered_sum.assign(filter.FilterTime().size(), 0);
     double phi_koef = 2 * PI / info.SignalWidth();
+    double gauss_sketch;
     
     complex_t total_sum = 0;
     //complex_t recovered_sum;
@@ -120,29 +125,51 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
     for (int64_t iter = 0; iter < max_iters; ++iter) {
         delta.Next(time);
         
+        gauss_sketch = d(gen);
+        
         if (info.IsSmallSignalWidth()) {
             for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
-                complex_t recovered_sum = complex_t(GetTableCos(freq_precalc[j].first * time, info.SignalWidth()), GetTableSin(freq_precalc[j].first * time, info.SignalWidth()));
-                total_sum += recovered_sum * freq_precalc[j].second;
+                recovered_sum[j] += gauss_sketch * complex_t(GetTableCos(freq_precalc[j].first * time, info.SignalWidth()), GetTableSin(freq_precalc[j].first * time, info.SignalWidth()));
             }
         } else {
             for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
-                complex_t recovered_sum = complex_t(cos((freq_precalc[j].first * time) * phi_koef), sin((freq_precalc[j].first * time) * phi_koef));
-                total_sum += recovered_sum * freq_precalc[j].second;
+                recovered_sum[j] += gauss_sketch * complex_t(cos((freq_precalc[j].first * time) * phi_koef), sin((freq_precalc[j].first * time) * phi_koef));
             }
         }
                 
-        total_sum /= static_cast<double>(info.SignalSize());
-        
         for (int j =0; j < static_cast<int>(filter.FilterTime().size()); ++j) {
             diff.StoreDifference(time, filter.FilterTime()[j].first);
-            complex_t filtered_sum = x.ValueAtTime(diff);
-            total_sum -= filtered_sum * filter.FilterTime()[j].second;
+            filtered_sum[j] += gauss_sketch * x.ValueAtTime(diff);
         }
-        if (NonZero(total_sum)) {
-            return true;
+        
+        if (iter < 1){
+            total_sum = 0;
+
+            for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
+                total_sum += recovered_sum[j] * freq_precalc[j].second;
+            }
+            total_sum /= static_cast<double>(info.SignalSize());
+            for (int j =0; j < static_cast<int>(filter.FilterTime().size()); ++j) {
+                total_sum -= filtered_sum[j] * filter.FilterTime()[j].second;
+            }
+            if (NonZero(total_sum)) {
+                return true;
+            }
         }
     }
+    
+    total_sum = 0;
+    for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
+        total_sum += recovered_sum[j] * freq_precalc[j].second;
+    }
+    total_sum /= static_cast<double>(info.SignalSize());
+    for (int j =0; j < static_cast<int>(filter.FilterTime().size()); ++j) {
+        total_sum -= filtered_sum[j] * filter.FilterTime()[j].second;
+    }
+    if (NonZero(total_sum / static_cast<double>(max_iters))) {
+        return true;
+    }
+
     return false;
 }
 
@@ -151,7 +178,7 @@ std::optional<FrequencyMap> SparseFFT(const Signal& x, const SignalInfo& info, i
     FrequencyMap recovered_freq;
     FrequencyMap total_freq = known_freq;
     SplittingTree tree(parent_tree, parent_node);
-
+    
     while (!tree.IsEmpty() && (settings.assume_random_phase || (tree.LeavesCount() + static_cast<int>(recovered_freq.size())) <= expected_sparsity)) {
         NodePtr node = tree.GetLightestNode();
         if (node->level == info.Dimensions() * info.LogSignalWidth()) {
@@ -171,10 +198,11 @@ std::optional<FrequencyMap> SparseFFT(const Signal& x, const SignalInfo& info, i
             tree.RemoveNode(node);
         } else {
             node->AddChildren();
-            if (!ZeroTest(x, total_freq, tree, node->left, info, expected_sparsity - (tree.LeavesCount()-1 + static_cast<int>(recovered_freq.size())), delta, settings)) {
+            int64_t zerotest_budget = expected_sparsity - (1-settings.assume_random_phase)*(tree.LeavesCount()-2 + static_cast<int>(recovered_freq.size()));
+            if (!ZeroTest(x, total_freq, tree, node->left, info, zerotest_budget, delta, settings)) {
                 tree.RemoveNode(node->left);
             }
-            if (!ZeroTest(x, total_freq, tree, node->right, info, expected_sparsity -(tree.LeavesCount()-1 + static_cast<int>(recovered_freq.size())), delta, settings)) {
+            if (!ZeroTest(x, total_freq, tree, node->right, info, zerotest_budget, delta, settings)) {
                 tree.RemoveNode(node->right);
             }
         }
@@ -194,7 +222,8 @@ public:
 
     std::optional<FrequencyMap> TryRestore(const Signal& x, const SignalInfo& info, const std::vector<int>& sparsities,
                                            int rank, IndexGenerator& delta, const TransformSettings& settings) {
-
+        
+        
         int64_t expected_sparsity = sparsities[rank - 1];
         next_sparsity_ = sparsities[rank - 2];
         auto root = tree_.GetRoot();
@@ -213,8 +242,9 @@ public:
                 std::vector<NodePtr> children({v->left, v->right});
                 bool skip_restore = false;
                 if (settings.use_preemptive_tests) {
+                    int64_t zerotest_budget = expected_sparsity - (1-settings.assume_random_phase)*((tree_.LeavesCount() -2) * next_sparsity_ + static_cast<int>(recovered_freq_.size()));
                     for (auto& node : children) {
-                        if (!ZeroTest(x, total_freq_, tree_, node, info, expected_sparsity - ((tree_.LeavesCount()-1) * next_sparsity_ + static_cast<int>(recovered_freq_.size())), delta, settings)) {
+                        if (!ZeroTest(x, total_freq_, tree_, node, info, zerotest_budget, delta, settings)) {
                             skip_restore = true;
                             tree_.RemoveNode(node);
                         }
@@ -246,7 +276,8 @@ private:
         }
         if (probable_freq) {
             auto new_total_freq = MapUnion(probable_freq.value(), total_freq_);
-            if (!ZeroTest(x, new_total_freq, tree_, node, info, expected_sparsity - ((tree_.LeavesCount()-1) * next_sparsity_ + static_cast<int>(recovered_freq_.size())), delta, settings)) {
+            int64_t zerotest_budget = expected_sparsity - (1-settings.assume_random_phase)*(std::max<int>(0, tree_.LeavesCount() -2) * next_sparsity_ + static_cast<int>(recovered_freq_.size()));
+            if (!ZeroTest(x, new_total_freq, tree_, node, info, zerotest_budget, delta, settings)) {
                 tree_.RemoveNode(node);
                 recovered_freq_ = MapUnion(recovered_freq_, probable_freq.value());
                 total_freq_.swap(new_total_freq);
