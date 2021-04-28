@@ -94,7 +94,7 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
     for (const auto& freq: recovered_freq) {
         complex_t filter_value = filter.FilterFrequency(freq.first);
         if (NonZero(filter_value)) {
-            freq_precalc.emplace_back(freq.first, freq.second * filter.FilterFrequency(freq.first));
+            freq_precalc.emplace_back(freq.first, freq.second * filter_value);
         }
     }
         
