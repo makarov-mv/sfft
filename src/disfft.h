@@ -32,7 +32,7 @@ private:
 
 struct TransformSettings {
     bool use_preemptive_tests{true};
-    double zero_test_koef{0.5};
+    double zero_test_koef{1};
     bool use_comb{true};
     bool assume_random_phase{false};
     int random_phase_sparsity_koef{1};
