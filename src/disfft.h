@@ -92,15 +92,15 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
     std::vector<std::pair<Key, complex_t>> freq_precalc;
     freq_precalc.reserve(recovered_freq.size());
     for (const auto& freq: recovered_freq) {
-        freq_precalc.emplace_back(freq.first, freq.second * filter.FilterFrequency(freq.first));
+        complex_t filter_value = filter.FilterFrequency(freq.first);
+        if (NonZero(filter_value)) {
+            freq_precalc.emplace_back(freq.first, freq.second * filter_value);
+        }
     }
         
     Key diff(info);
     Key time(info);
     
-    std::random_device rd{};
-    std::mt19937 gen{rd()};
-    std::normal_distribution<> d{0.,1.};
 
     //static AlignedVector phi(freq_precalc.size());
     //phi.expand(freq_precalc.size());
@@ -116,30 +116,25 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
     filtered_sum.clear();
     filtered_sum.assign(filter.FilterTime().size(), 0);
     double phi_koef = 2 * PI / info.SignalWidth();
-    double gauss_sketch;
     
     complex_t total_sum = 0;
-    //complex_t recovered_sum;
-    //complex_t filtered_sum;
     
     for (int64_t iter = 0; iter < max_iters; ++iter) {
         delta.Next(time);
-        
-        gauss_sketch = d(gen);
-        
+                
         if (info.IsSmallSignalWidth()) {
             for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
-                recovered_sum[j] += gauss_sketch * complex_t(GetTableCos(freq_precalc[j].first * time, info.SignalWidth()), GetTableSin(freq_precalc[j].first * time, info.SignalWidth()));
+                recovered_sum[j] += complex_t(GetTableCos(freq_precalc[j].first * time, info.SignalWidth()), GetTableSin(freq_precalc[j].first * time, info.SignalWidth()));
             }
         } else {
             for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
-                recovered_sum[j] += gauss_sketch * complex_t(cos((freq_precalc[j].first * time) * phi_koef), sin((freq_precalc[j].first * time) * phi_koef));
+                recovered_sum[j] += complex_t(cos((freq_precalc[j].first * time) * phi_koef), sin((freq_precalc[j].first * time) * phi_koef));
             }
         }
                 
         for (int j =0; j < static_cast<int>(filter.FilterTime().size()); ++j) {
             diff.StoreDifference(time, filter.FilterTime()[j].first);
-            filtered_sum[j] += gauss_sketch * x.ValueAtTime(diff);
+            filtered_sum[j] +=  x.ValueAtTime(diff);
         }
         
         if (iter < 1){
