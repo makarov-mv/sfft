@@ -32,7 +32,7 @@ private:
 
 struct TransformSettings {
     bool use_preemptive_tests{true};
-    double zero_test_koef{1};
+    double zero_test_koef{0.5};
     bool use_comb{true};
     bool assume_random_phase{false};
     int random_phase_sparsity_koef{1};
@@ -409,9 +409,11 @@ FrequencyMap RecursiveSparseFFT(const Signal& x, const SignalInfo& info, int64_t
     if (settings.use_projection_recovery) {
         // PFT is assumed to be always correct, therefore we can just overwrite frequencies and not change the sparsity
         auto res = ProjectionFT(x, info, 2);
+//        printf("width: %i, recovered: %i\n", (int) info.SignalWidth(), (int) res.size());
         for (const auto& w: res) {
             prefiltered[w.first] = w.second;
         }
+        sparsity = std::max<int64_t>(1, sparsity - res.size());
     }
     IndexGenerator delta(info, seed);
     NodePtr parent(nullptr);

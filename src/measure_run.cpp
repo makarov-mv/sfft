@@ -25,6 +25,25 @@ std::vector<complex_t> GenDiracComb(const SignalInfo& info, int64_t sparsity) {
 }
 
 template <class Generator>
+std::vector<complex_t> GenRandomSupportWithOvertones(const SignalInfo& info, int64_t sparsity, Generator& gen) {
+    if (info.Dimensions() < 2) {
+        return GenRandomSupport(info, sparsity, gen);
+    }
+    std::uniform_int_distribution<int64_t> dist(0, info.SignalSize() - 1);
+    std::vector<complex_t> out(info.SignalSize());
+    int maxd = std::min(4, info.Dimensions() + 1);
+    for (int i = 0; i < sparsity / maxd; ++i) {
+        auto pos = dist(gen);
+        out[pos] += 1;
+        Key overtone(info, pos);
+        for (int j = 0; j < maxd - 1; ++j) {
+            out[overtone.IncreaseAt(j, info.SignalWidth() / 2).Flatten()] += 0.5;
+        }
+    }
+    return out;
+}
+
+template <class Generator>
 std::vector<complex_t> GenCombined(const SignalInfo& info, int64_t sparsity, Generator& gen) {
     assert((sparsity & (sparsity - 1)) == 0);
     std::vector<complex_t> out = GenRandomSupport(info, sparsity / 2, gen);
@@ -59,6 +78,13 @@ class RandomSignalGenerator : public SignalGenerator {
 public:
     std::vector<complex_t> GenSignal(const SignalInfo& info, int64_t sparsity, std::mt19937_64& gen) override {
         return GenRandomSupport(info, sparsity, gen);
+    }
+};
+
+class RandomSignalGeneratorWithOvertones : public SignalGenerator {
+public:
+    std::vector<complex_t> GenSignal(const SignalInfo& info, int64_t sparsity, std::mt19937_64& gen) override {
+        return GenRandomSupportWithOvertones(info, sparsity, gen);
     }
 };
 
@@ -364,7 +390,7 @@ public:
             std::string signal_type;
             in >> signal_type;
             if (signal_type == "random") {
-                generator_.push_back(std::make_unique<RandomSignalGenerator>());
+                generator_.push_back(std::make_unique<RandomSignalGeneratorWithOvertones>());
             } else if (signal_type == "comb") {
                 generator_.push_back(std::make_unique<DiracCombGenerator>());
             } else if (signal_type == "combined") {
