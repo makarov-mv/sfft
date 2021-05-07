@@ -16,13 +16,24 @@
 
 class IndexGenerator {
 public:
-    IndexGenerator(const SignalInfo& info, int64_t seed):
+    IndexGenerator(const SignalInfo& info, int64_t sparsity, double zero_test_koef, int64_t seed):
         info_(info), rand_gen_(seed), index_gen_(0, info.SignalSize()) {
+            
+            int64_t table_size = std::max<int64_t>(llround(zero_test_koef * sparsity * log2(info.SignalSize())), 1);
+            
+            Key time(info);
+            for (int64_t iter = 0; iter < table_size; ++iter) {
+                Next(time);
+                indices_.push_back(time);
+            }
+
     }
 
     void Next(Key& value) {
         value.SetFromFlatten(index_gen_(rand_gen_));
     }
+    
+    std::vector<Key> indices_;
 
 private:
     SignalInfo info_;
@@ -120,7 +131,8 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
     complex_t total_sum = 0;
     
     for (int64_t iter = 0; iter < max_iters; ++iter) {
-        delta.Next(time);
+        //delta.Next(time);
+        time = delta.indices_[iter];
                 
         if (info.IsSmallSignalWidth()) {
             for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
@@ -410,7 +422,7 @@ FrequencyMap RecursiveSparseFFT(const Signal& x, const SignalInfo& info, int64_t
         }
         sparsity = std::max<int64_t>(1, sparsity - res.size());
     }
-    IndexGenerator delta(info, seed);
+    IndexGenerator delta(info, sparsity, settings.zero_test_koef, seed);
     NodePtr parent(nullptr);
     if (settings.assume_random_phase) {
         rank = 1;
