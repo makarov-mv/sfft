@@ -49,8 +49,8 @@ public:
             int64_t shift = info.SignalWidth() >> subtree_level;
             assert(current_period >= 0 && current_period < info.Dimensions());
             
-            int64_t phase_shift = - label_[current_period];
-            auto phase = CalcKernel(phase_shift, 1 << subtree_level);
+            int64_t phase_shift = label_[current_period];
+            auto phase = CalcKernel(-phase_shift, 1 << subtree_level);
             phase_shift_.push_back(phase_shift);
             
             current_period_.push_back(current_period);
@@ -75,7 +75,7 @@ public:
         complex_t freq = 1.;
         for (size_t i = 0; i < path_.size(); ++i) {
             //int current_period = CalcCurrentPeriod(i);
-            int64_t numer = key[current_period_[i]] + phase_shift_[i] + (1 << SubtreeLevel_[i]);
+            int64_t numer = key[current_period_[i]] - phase_shift_[i] + (1 << SubtreeLevel_[i]);
             int64_t denom = 1 << SubtreeLevel_[i];
             if ((numer & (denom-1)) == (1 << (SubtreeLevel_[i]-1))){
                 return 0;
