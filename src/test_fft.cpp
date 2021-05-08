@@ -316,8 +316,9 @@ TEST_CASE("ZeroTest 1") {
     auto a2 = root->MakeRight();
     FrequencyMap chi{};
     SignalInfo info(1, 4);
-    IndexGenerator delta(info, 321);
+    //IndexGenerator delta(info, 321);
     TransformSettings settings;
+    IndexGenerator delta(info, 2, settings.zero_test_koef, 321);
 
     {
         // ifft([1, 0, 0, 0])
@@ -354,9 +355,9 @@ TEST_CASE("ZeroTest 1.5") {
     auto b2 = a2->MakeRight();
     FrequencyMap chi{};
     SignalInfo info(1, 4);
-    IndexGenerator delta(info, 321);
+    //IndexGenerator delta(info, 321);
     TransformSettings settings;
-
+    IndexGenerator delta(info, 2, settings.zero_test_koef, 321);
     {
         // ifft([0, 1, 1, 0])
         complex_t data[] = {0.5 +0.i  , -0.25+0.25i,  0.  +0.i  , -0.25-0.25i};
@@ -375,9 +376,9 @@ TEST_CASE("ZeroTest 2") {
     auto b2 = b1->MakeLeft();
     auto b3 = b2->MakeRight();
     SignalInfo info(1, 8);
-    IndexGenerator delta(info, 321);
+    //IndexGenerator delta(info, 321);
     TransformSettings settings;
-
+    IndexGenerator delta(info, 3, settings.zero_test_koef, 321);
     {
         // ifft([0, 0, 0, 0, 0, 0, 0, 0])
         complex_t data[] = {0, 0, 0, 0, 0, 0, 0, 0};

@@ -130,6 +130,7 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
     
     complex_t total_sum = 0;
     
+    
     for (int64_t iter = 0; iter < max_iters; ++iter) {
         //delta.Next(time);
         time = delta.indices_[iter];
@@ -422,12 +423,15 @@ FrequencyMap RecursiveSparseFFT(const Signal& x, const SignalInfo& info, int64_t
         }
         sparsity = std::max<int64_t>(1, sparsity - res.size());
     }
-    IndexGenerator delta(info, sparsity, settings.zero_test_koef, seed);
+    
     NodePtr parent(nullptr);
     if (settings.assume_random_phase) {
         rank = 1;
         sparsity = std::min<int64_t>(sparsity, settings.random_phase_sparsity_koef);
     }
+    
+    IndexGenerator delta(info, sparsity, settings.zero_test_koef, seed);
+    
     double step = pow(sparsity / 1.0, 1. / rank);
     std::vector<int> sparsities(rank);
     sparsities[rank - 1] = sparsity;
