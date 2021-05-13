@@ -48,25 +48,48 @@ private:
 
 class Key {
 public:
-    explicit Key(const SignalInfo& info) : info_(info), indices_(info.Dimensions(), 0) {
+    const static int MAX_DIM = 6;
+    explicit Key(const SignalInfo& info) : info_(info) {
+        SetZero();
     }
 
-    explicit Key(const SignalInfo& info, std::vector<int64_t> key) : info_(info), indices_(std::move(key)) {
-        assert(info.Dimensions() == static_cast<int>(indices_.size()));
+    Key(const Key& other) : info_(other.info_) {
+        for (int i = 0; i < info_.Dimensions(); ++i) {
+            indices_[i] = other.indices_[i];
+        }
     }
 
-    explicit Key(const SignalInfo& info, const std::initializer_list<int64_t>& key) : info_(info), indices_(info.Dimensions(), 0) {
-        assert(info.Dimensions() == static_cast<int>(indices_.size()));
-        std::copy(key.begin(), key.end(), indices_.begin());
+    Key& operator=(const Key& other) {
+        info_ = other.info_;
+        for (int i = 0; i < info_.Dimensions(); ++i) {
+            indices_[i] = other.indices_[i];
+        }
+        return *this;
     }
 
-    explicit Key(const SignalInfo& info, int64_t flatten) : info_(info), indices_(info.Dimensions(), 0) {
-        assert(info.Dimensions() == static_cast<int>(indices_.size()));
+    explicit Key(const SignalInfo& info, std::vector<int64_t> key) : info_(info) {
+        assert(info.Dimensions() == static_cast<int>(key.size()));
+        for (int i = 0; i < info_.Dimensions(); ++i) {
+            indices_[i] = key[i];
+        }
+    }
+
+    explicit Key(const SignalInfo& info, const std::initializer_list<int64_t>& key) : info_(info) {
+        assert(info.Dimensions() == static_cast<int>(key.size()));
+        for (int i = 0; i < info_.Dimensions(); ++i) {
+            indices_[i] = data(key)[i];
+        }
+    }
+
+    explicit Key(const SignalInfo& info, int64_t flatten) : info_(info) {
+        SetZero();
         SetFromFlatten(flatten);
     }
 
     void SetZero() {
-        indices_.assign(indices_.size(), 0);
+        for (int i = 0; i < info_.Dimensions(); ++i) {
+            indices_[i] = 0;
+        }
     }
 
     // leftmost dimension is highest in the tree
@@ -89,7 +112,12 @@ public:
 
     bool operator==(const Key& other) const {
         assert(info_ == other.info_);
-        return indices_ == other.indices_;
+        for (int i = 0; i < info_.Dimensions(); ++i) {
+            if (indices_[i] != other.indices_[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     SignalInfo GetSignalInfo() const {
@@ -97,10 +125,10 @@ public:
     }
 
     Key IncreaseAt(int index, int64_t value) const {
-        std::vector<int64_t> new_indices(indices_);
-        new_indices[index] += value + info_.SignalWidth();
-        new_indices[index] %= info_.SignalWidth();
-        return Key{info_, std::move(new_indices)};
+        Key res(*this);
+        res.indices_[index] += value + info_.SignalWidth();
+        res.indices_[index] %= info_.SignalWidth();
+        return res;
     }
 
     void StoreDifference(const Key& a, const Key& b) {
@@ -111,11 +139,11 @@ public:
     }
 
     Key operator-() const {
-        std::vector<int64_t> new_indices(info_.Dimensions());
+        Key res(info_);
         for (int i = 0; i < info_.Dimensions(); ++i) {
-            new_indices[i] = (-indices_[i] + info_.SignalWidth()) % info_.SignalWidth();
+            res.indices_[i] = (-indices_[i] + info_.SignalWidth()) % info_.SignalWidth();
         }
-        return Key{info_, std::move(new_indices)};
+        return res;
     }
 
     int64_t operator*(const Key& key) const {
@@ -135,6 +163,7 @@ public:
     }
 
 private:
+
     SignalInfo info_;
-    std::vector<int64_t> indices_;
+    int64_t indices_[MAX_DIM];
 };

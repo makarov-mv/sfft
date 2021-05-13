@@ -2,9 +2,12 @@
 
 #include <vector>
 #include <unordered_map>
+#include <map>
 #include <iterator>
 #include "tree.h"
 #include "signal.h"
+#include "pair_allocator.h"
+#include <memory_resource>
 
 namespace std {
     template<>
@@ -34,16 +37,27 @@ FrequencyMap MapUnion(const FrequencyMap& a, const FrequencyMap& b) {
     return c;
 }
 
-
 class Filter {
 public:
+    using Allocator = StackAllocator<std::pair<const Key, complex_t>>;
+    using Hashmap = std::unordered_map<Key, complex_t, std::hash<Key>, std::equal_to<>, Allocator>;
 
     Filter(const SplittingTree& tree, const NodePtr& node, const SignalInfo& info) : label_(info, node->label), info_(info), period_size_(CalcLog(info.SignalWidth())) {
         path_ = tree.GetRootPath(node);
-        std::unordered_map<Key, complex_t> filter;
-        filter[Key(info, 0)] = 1;
+        static Allocator main;
+        static Allocator secondary;
+        main.consolidate();
+        secondary.consolidate();
+        Allocator* main_ptr = &main;
+        Allocator* secondary_ptr = &secondary;
+        Hashmap filter_base(main);
+        Hashmap updated_filter_base(secondary);
+        Hashmap* filter_ptr = &filter_base;
+        Hashmap* upd_filter_ptr = &updated_filter_base;
+        filter_base[Key(info, 0)] = 1;
         for (int i = 0; i < static_cast<int>(path_.size()); ++i) {
-            std::unordered_map<Key, complex_t> updated_filter;
+            Hashmap& filter = *filter_ptr;
+            Hashmap& updated_filter = *upd_filter_ptr;
             int current_period = CalcCurrentPeriod(i);
             int64_t subtree_level = CalcSubtreeLevel(i);
             int64_t shift = info.SignalWidth() >> subtree_level;
@@ -60,9 +74,13 @@ public:
                 updated_filter[index] = (MapFilterValueAtTime(filter, index) + phase * MapFilterValueAtTime(filter, index.IncreaseAt(current_period, shift))) / 2.;
                 updated_filter[index.IncreaseAt(current_period, -shift)] = (MapFilterValueAtTime(filter, index.IncreaseAt(current_period, -shift)) + phase * MapFilterValueAtTime(filter, index)) / 2.;
             }
-            filter.swap(updated_filter);
-            updated_filter.clear();
+            std::swap(filter_ptr, upd_filter_ptr);
+            std::swap(main_ptr, secondary_ptr);
+            upd_filter_ptr->~Hashmap();
+            secondary_ptr->consolidate();
+            new (upd_filter_ptr) Hashmap(*secondary_ptr);
         }
+        Hashmap& filter = *filter_ptr;
         filter_.reserve(filter.size());
         filter_.insert(filter_.end(), std::make_move_iterator(filter.begin()), std::make_move_iterator(filter.end()));        
     }
@@ -105,7 +123,7 @@ private:
         return path_[path_pos] / period_size_;
     }
 
-    complex_t MapFilterValueAtTime(const std::unordered_map<Key, complex_t>& filter, const Key& time) const {
+    complex_t MapFilterValueAtTime(const Hashmap& filter, const Key& time) const {
         auto it = filter.find(time);
         if (it != filter.end()) {
             return it->second;
