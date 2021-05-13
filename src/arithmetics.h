@@ -12,6 +12,8 @@ const double PI = M_PI;
 const complex_t I = complex_t(0, 1);
 const double EPS = 1e-9;
 
+constexpr int SMALL_SIGNAL_WIDTH = 1 << 10;
+
 inline complex_t CalcKernel(double power, double base) {
     double phi = 2 * PI * power / base;
     return {cos(phi), sin(phi)};

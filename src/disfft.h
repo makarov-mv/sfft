@@ -50,49 +50,6 @@ struct TransformSettings {
     bool use_projection_recovery{true};
 };
 
-class AlignedVector {
-public:
-    AlignedVector(int n) {
-        data_ = nullptr;
-        realloc_data(n);
-    }
-
-    void expand(int n) {
-        if (n > size_) {
-            realloc_data(n);
-        }
-    }
-
-    ~AlignedVector() {
-        if (data_ != nullptr) {
-            std::free(data_);
-        }
-    }
-
-    double& operator[](int i) {
-        return data_[i];
-    }
-
-private:
-    int size_;
-    double* data_;
-
-    void realloc_data(int n) {
-        if (data_ != nullptr) {
-            std::free(data_);
-            data_ = nullptr;
-        }
-        if (n % 2 == 1) {
-            n += 1;
-        }
-        data_ = (double *) std::malloc(n * sizeof(double));
-        for (int i = 0; i < n; ++i) {
-            data_[i] = 0;
-        }
-        size_ = n;
-    }
-};
-
 bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const SplittingTree& tree,
               const SplittingTree::NodePtr& cone_node, const SignalInfo& info, int64_t sparsity, IndexGenerator& delta,
               const TransformSettings& settings) {
@@ -111,15 +68,7 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
         
     Key diff(info);
     Key time(info);
-    
 
-    //static AlignedVector phi(freq_precalc.size());
-    //phi.expand(freq_precalc.size());
-    
-    //static AlignedVector x_kernel(freq_precalc.size());
-    //x_kernel.expand(freq_precalc.size());
-    //static AlignedVector y_kernel(freq_precalc.size());
-    //y_kernel.expand(freq_precalc.size());
     static std::vector<complex_t> recovered_sum;
     recovered_sum.clear();
     recovered_sum.assign(freq_precalc.size(), 0);
@@ -132,7 +81,6 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
     
     
     for (int64_t iter = 0; iter < max_iters; ++iter) {
-        //delta.Next(time);
         time = delta.indices_[iter];
                 
         if (info.IsSmallSignalWidth()) {

@@ -1,11 +1,11 @@
 #include "arithmetics.h"
-#include "assert.h"
+#include "cassert"
 
-double cos_table[1 << 10];
-double sin_table[1 << 10];
+double cos_table[SMALL_SIGNAL_WIDTH];
+double sin_table[SMALL_SIGNAL_WIDTH];
 
 void PrepareCosSinTables(int width) {
-    assert(width <= (1 << 10));
+    assert(width <= SMALL_SIGNAL_WIDTH);
     for (int i = 0; i < width; ++i) {
         cos_table[i] = cos((2 * PI * i) / width);
         sin_table[i] = sin((2 * PI * i) / width);
