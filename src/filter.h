@@ -42,7 +42,7 @@ public:
     using Allocator = StackAllocator<std::pair<const Key, complex_t>>;
     using Hashmap = std::unordered_map<Key, complex_t, std::hash<Key>, std::equal_to<>, Allocator>;
 
-    Filter(const SplittingTree& tree, const NodePtr& node, const SignalInfo& info) : label_(info, node->label), info_(info), period_size_(CalcLog(info.SignalWidth())) {
+    Filter(const SplittingTree& tree, const NodePtr& node, const SignalInfo& info) : label_(info, node->label), info_(info) {
         path_ = tree.GetRootPath(node);
         static Allocator main;
         static Allocator secondary;
@@ -60,7 +60,7 @@ public:
             Hashmap& updated_filter = *upd_filter_ptr;
             int current_period = CalcCurrentPeriod(i);
             int64_t subtree_level = CalcSubtreeLevel(i);
-            int64_t shift = info.SignalWidth() >> subtree_level;
+            int64_t shift = info.SignalWidth(current_period) >> subtree_level;
             assert(current_period >= 0 && current_period < info.Dimensions());
             
             int64_t phase_shift = label_[current_period];
@@ -116,11 +116,25 @@ public:
 
 private:
     int CalcSubtreeLevel(int path_pos) const {
-        return path_[path_pos] - CalcCurrentPeriod(path_pos) * period_size_ + 1;
+        int cur_level = path_[path_pos];
+        for (int i = 0; i < info_.Dimensions(); ++i) {
+            if (cur_level >= info_.LogSignalWidth(i)) {
+                cur_level -= info_.LogSignalWidth(i);
+            } else {
+                break;
+            }
+        }
+        return cur_level + 1;
     }
 
     int CalcCurrentPeriod(int path_pos) const {
-        return path_[path_pos] / period_size_;
+        int cur_level = path_[path_pos];
+        int cur_period = 0;
+        while (cur_period < info_.Dimensions() && cur_level >= info_.LogSignalWidth(cur_period)) {
+            cur_level -= info_.LogSignalWidth(cur_period);
+            ++cur_period;
+        }
+        return cur_period;
     }
 
     complex_t MapFilterValueAtTime(const Hashmap& filter, const Key& time) const {
@@ -138,7 +152,6 @@ private:
 
     Key label_;
     SignalInfo info_;
-    int period_size_;
     std::vector<int> path_;
     std::vector<int64_t> phase_shift_;
     std::vector<int> current_period_;

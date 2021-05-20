@@ -75,21 +75,23 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
     static std::vector<complex_t> filtered_sum;
     filtered_sum.clear();
     filtered_sum.assign(filter.FilterTime().size(), 0);
-    double phi_koef = 2 * PI / info.SignalWidth();
     
     complex_t total_sum = 0;
-    
+    const int max_width = (1 << info.MaxLogWidth());
     
     for (int64_t iter = 0; iter < max_iters; ++iter) {
         time = delta.indices_[iter];
                 
         if (info.IsSmallSignalWidth()) {
             for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
-                recovered_sum[j] += complex_t(GetTableCos(freq_precalc[j].first * time, info.SignalWidth()), GetTableSin(freq_precalc[j].first * time, info.SignalWidth()));
+                recovered_sum[j] += complex_t(GetTableCos(freq_precalc[j].first.GetProduct(time), max_width),
+                                              GetTableSin(freq_precalc[j].first.GetProduct(time), max_width));
             }
         } else {
+            double phi_koef = 2 * PI / max_width;
             for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
-                recovered_sum[j] += complex_t(cos((freq_precalc[j].first * time) * phi_koef), sin((freq_precalc[j].first * time) * phi_koef));
+                recovered_sum[j] += complex_t(cos(freq_precalc[j].first.GetProduct(time) * phi_koef),
+                                              sin(freq_precalc[j].first.GetProduct(time) * phi_koef));
             }
         }
                 
@@ -137,7 +139,7 @@ std::optional<FrequencyMap> SparseFFT(const Signal& x, const SignalInfo& info, i
     
     while (!tree.IsEmpty() && (settings.assume_random_phase || (tree.LeavesCount() + static_cast<int>(recovered_freq.size())) <= expected_sparsity)) {
         NodePtr node = tree.GetLightestNode();
-        if (node->level == info.Dimensions() * info.LogSignalWidth()) {
+        if (node->level == info.LogSignalSize()) {
             auto filter = Filter(tree, node, info);
             complex_t recovered = 0;
             for (const auto& freq : total_freq) {
@@ -187,7 +189,7 @@ public:
         while (!tree_.IsEmpty() && (tree_.LeavesCount() * next_sparsity_ + static_cast<int>(recovered_freq_.size())) <= expected_sparsity) {
             NodePtr v = tree_.GetLightestNode();
             // Check if we reached the bottom
-            if (v->level == info.Dimensions() * info.LogSignalWidth()) {
+            if (v->level == info.LogSignalSize()) {
                 SparsityTest(x, info, expected_sparsity, sparsities, v, rank, delta, settings);
                 // Sometimes errors are too big, and the node is not removed after SparsityTest
                 if (!v->Removed()) {
@@ -247,105 +249,105 @@ private:
     SplittingTree tree_;
 };
 
-std::vector<int> PrepareCombSizes(int n, int d, int k) {
-    const double Comb_cst = 10;
-    std::vector<int> W_Combs(d);
-    int total_log = static_cast<int>(floor(std::min(d * log2(n), log2(Comb_cst * k))));
-    int base = total_log / d;
-    for (int i = 0; i < total_log % d; ++i) {
-        W_Combs[i] = 1 << (base + 1);
-    }
-    for (int i = total_log % d; i < d; ++i) {
-        W_Combs[i] = 1 << base;
-    }
-    return W_Combs;
-}
+//std::vector<int> PrepareCombSizes(int n, int d, int k) {
+//    const double Comb_cst = 10;
+//    std::vector<int> W_Combs(d);
+//    int total_log = static_cast<int>(floor(std::min(d * log2(n), log2(Comb_cst * k))));
+//    int base = total_log / d;
+//    for (int i = 0; i < total_log % d; ++i) {
+//        W_Combs[i] = 1 << (base + 1);
+//    }
+//    for (int i = total_log % d; i < d; ++i) {
+//        W_Combs[i] = 1 << base;
+//    }
+//    return W_Combs;
+//}
+//
+//void ComputeCombBucketedSignal(int n, int d, int lvl, const Key& a, int* W_Combs, int* u_index, Key& in_index, const Signal& in, complex_t* u) {
+//    if (lvl < d) {
+//        int step = n / W_Combs[lvl];
+//        for (int h = 0; h < W_Combs[lvl]; ++h) {
+//            u_index[lvl] = h;
+//            in_index[lvl] = (h * step + a[lvl]) & (n - 1);
+//            ComputeCombBucketedSignal(n, d, lvl + 1, a, W_Combs, u_index, in_index, in, u);
+//        }
+//    } else {
+//        // dimension order for ffrw is row major (different from Key order)
+//        int flatten = 0;
+//        for (int i = 0; i < d; ++i) {
+//            flatten = flatten * W_Combs[i] + u_index[i];
+//        }
+//        u[flatten] += in.ValueAtTime(in_index);
+//    }
+//}
+//
+//void HashToBinsComb(const SignalInfo& info, const Signal& in, const Key& a, int W_total, int* W_Combs, complex_t* u, const fftw_plan& p) {
+//    std::vector<int> u_index(info.Dimensions(), 0);
+//    Key in_index(info);
+//    for (int i = 0; i < W_total; ++i) {
+//        u[i] = 0;
+//    }
+//    ComputeCombBucketedSignal(info.SignalWidth(), info.Dimensions(), 0, a, W_Combs, u_index.data(), in_index, in, u);
+//    fftw_execute(p);
+//    for (int i = 0; i < W_total; ++i) {
+//        u[i] *= info.SignalSize() / W_total;
+//    }
+//}
 
-void ComputeCombBucketedSignal(int n, int d, int lvl, const Key& a, int* W_Combs, int* u_index, Key& in_index, const Signal& in, complex_t* u) {
-    if (lvl < d) {
-        int step = n / W_Combs[lvl];
-        for (int h = 0; h < W_Combs[lvl]; ++h) {
-            u_index[lvl] = h;
-            in_index[lvl] = (h * step + a[lvl]) & (n - 1);
-            ComputeCombBucketedSignal(n, d, lvl + 1, a, W_Combs, u_index, in_index, in, u);
-        }
-    } else {
-        // dimension order for ffrw is row major (different from Key order)
-        int flatten = 0;
-        for (int i = 0; i < d; ++i) {
-            flatten = flatten * W_Combs[i] + u_index[i];
-        }
-        u[flatten] += in.ValueAtTime(in_index);
-    }
-}
-
-void HashToBinsComb(const SignalInfo& info, const Signal& in, const Key& a, int W_total, int* W_Combs, complex_t* u, const fftw_plan& p) {
-    std::vector<int> u_index(info.Dimensions(), 0);
-    Key in_index(info);
-    for (int i = 0; i < W_total; ++i) {
-        u[i] = 0;
-    }
-    ComputeCombBucketedSignal(info.SignalWidth(), info.Dimensions(), 0, a, W_Combs, u_index.data(), in_index, in, u);
-    fftw_execute(p);
-    for (int i = 0; i < W_total; ++i) {
-        u[i] *= info.SignalSize() / W_total;
-    }
-}
-
-int RestoreFrequencies(const SignalInfo& info, int Btotal, const Key& ai, const std::vector<complex_t*>& u, FrequencyMap& out) {
-    Key i(info);
-    int cnt = 0;
-    for (int j = 0; j < Btotal; ++j) {
-        if (NonZero(u[0][j])) {
-            ++cnt;
-            i.SetZero();
-            for (int h = 0; h < info.Dimensions(); ++h) {
-                complex_t alpha = u[0][j] / u[h + 1][j];
-                i[h] = (((int64_t) ai[h]) * lround(std::arg(alpha) * info.SignalWidth() / (2 * M_PI))) & (info.SignalWidth() - 1);
-                if (i[h] < 0) {
-                    i[h] += info.SignalWidth();
-                }
-            }
-            out[i] += u[0][j];
-        }
-    }
-    return cnt;
-}
-
-int CombFiltration(const Signal& x, const SignalInfo& info, int64_t sparsity, FrequencyMap& out) {
-    int n = info.SignalWidth();
-    int d = info.Dimensions();
-    int WCombTotal = 1;
-    auto W_Combs = PrepareCombSizes(n, d, sparsity);
-    for (int i = 0; i < d; ++i) {
-        WCombTotal *= W_Combs[i];
-    }
-    std::vector<complex_t*> u(d + 1);
-    for (int i = 0; i < d + 1; ++i) {
-        u[i] = (complex_t*) fftw_malloc(sizeof(fftw_complex) * WCombTotal);
-    }
-    Key c(info);
-    for (int i = 0; i < d + 1; ++i) {
-        if (i > 0) {
-            c[i - 1] = n - 1;
-        }
-        fftw_plan plan = fftw_plan_dft(d, W_Combs.data(), reinterpret_cast<fftw_complex*>(u[i]), reinterpret_cast<fftw_complex*>(u[i]), FFTW_FORWARD, FFTW_ESTIMATE);
-        HashToBinsComb(info, x, c, WCombTotal, W_Combs.data(), u[i], plan);
-        fftw_destroy_plan(plan);
-        if (i > 0) {
-            c[i - 1] = 0;
-        }
-    }
-    Key ai(info);
-    for (int i = 0; i < d; ++i) {
-        ai[i] = 1;
-    }
-    auto cnt = RestoreFrequencies(info, WCombTotal, ai, u, out);
-    for (int i = 0; i < d + 1; ++i) {
-        fftw_free(u[i]);
-    }
-    return cnt;
-}
+//int RestoreFrequencies(const SignalInfo& info, int Btotal, const Key& ai, const std::vector<complex_t*>& u, FrequencyMap& out) {
+//    Key i(info);
+//    int cnt = 0;
+//    for (int j = 0; j < Btotal; ++j) {
+//        if (NonZero(u[0][j])) {
+//            ++cnt;
+//            i.SetZero();
+//            for (int h = 0; h < info.Dimensions(); ++h) {
+//                complex_t alpha = u[0][j] / u[h + 1][j];
+//                i[h] = (((int64_t) ai[h]) * lround(std::arg(alpha) * info.SignalWidth() / (2 * M_PI))) & (info.SignalWidth() - 1);
+//                if (i[h] < 0) {
+//                    i[h] += info.SignalWidth();
+//                }
+//            }
+//            out[i] += u[0][j];
+//        }
+//    }
+//    return cnt;
+//}
+//
+//int CombFiltration(const Signal& x, const SignalInfo& info, int64_t sparsity, FrequencyMap& out) {
+//    int n = info.SignalWidth();
+//    int d = info.Dimensions();
+//    int WCombTotal = 1;
+//    auto W_Combs = PrepareCombSizes(n, d, sparsity);
+//    for (int i = 0; i < d; ++i) {
+//        WCombTotal *= W_Combs[i];
+//    }
+//    std::vector<complex_t*> u(d + 1);
+//    for (int i = 0; i < d + 1; ++i) {
+//        u[i] = (complex_t*) fftw_malloc(sizeof(fftw_complex) * WCombTotal);
+//    }
+//    Key c(info);
+//    for (int i = 0; i < d + 1; ++i) {
+//        if (i > 0) {
+//            c[i - 1] = n - 1;
+//        }
+//        fftw_plan plan = fftw_plan_dft(d, W_Combs.data(), reinterpret_cast<fftw_complex*>(u[i]), reinterpret_cast<fftw_complex*>(u[i]), FFTW_FORWARD, FFTW_ESTIMATE);
+//        HashToBinsComb(info, x, c, WCombTotal, W_Combs.data(), u[i], plan);
+//        fftw_destroy_plan(plan);
+//        if (i > 0) {
+//            c[i - 1] = 0;
+//        }
+//    }
+//    Key ai(info);
+//    for (int i = 0; i < d; ++i) {
+//        ai[i] = 1;
+//    }
+//    auto cnt = RestoreFrequencies(info, WCombTotal, ai, u, out);
+//    for (int i = 0; i < d + 1; ++i) {
+//        fftw_free(u[i]);
+//    }
+//    return cnt;
+//}
 
 FrequencyMap RecursiveSparseFFT(const Signal& x, const SignalInfo& info, int64_t sparsity, int rank, int64_t seed = 61, TransformSettings settings = {}) {
     assert(info.SignalSize() > 1);
@@ -353,15 +355,15 @@ FrequencyMap RecursiveSparseFFT(const Signal& x, const SignalInfo& info, int64_t
         return {};
     }
     if (info.IsSmallSignalWidth()) {
-        PrepareCosSinTables(info.SignalWidth());
+        PrepareCosSinTables(1 << info.MaxLogWidth());
     }
     
     
     FrequencyMap prefiltered;
-    if (settings.use_comb) {
-        CombFiltration(x, info, sparsity, prefiltered);
-        sparsity += prefiltered.size();
-    }
+//    if (settingsse_comb) {
+//        CombFiltration(x, info, sparsity, prefiltered);
+//        sparsity += prefiltered.size();
+//    }
     if (settings.use_projection_recovery) {
         // PFT is assumed to be always correct, therefore we can just overwrite frequencies and not change the sparsity
         auto res = ProjectionFT(x, info, 2);
@@ -391,7 +393,7 @@ FrequencyMap RecursiveSparseFFT(const Signal& x, const SignalInfo& info, int64_t
     std::optional<FrequencyMap> res;
         
     if (rank == 1) {
-        res = SparseFFT(x, info, sparsity, nullptr, parent, prefiltered, delta, settings);
+         res = SparseFFT(x, info, sparsity, nullptr, parent, prefiltered, delta, settings);
     } else {
         Restorer restorer(nullptr, parent, prefiltered);
         res = restorer.TryRestore(x, info, sparsities, rank, delta, settings);

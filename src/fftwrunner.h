@@ -5,14 +5,14 @@
 
 class FFTWRunner {
 public:
-    FFTWRunner(int64_t signal_size, int dimensions, int64_t signal_width, int direction)
-    : signal_size_(signal_size), ranks_(dimensions, signal_width), direction_(direction) {
+    FFTWRunner(int64_t signal_size, const std::vector<int>& signal_width, int direction)
+    : signal_size_(signal_size), ranks_(signal_width.rbegin(), signal_width.rend()), direction_(direction) {
         in_ = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * signal_size);
         out_ = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * signal_size);
-        plan_ = fftw_plan_dft(dimensions, ranks_.data(), in_, out_, direction, FFTW_ESTIMATE);
+        plan_ = fftw_plan_dft(ranks_.size(), ranks_.data(), in_, out_, direction, FFTW_ESTIMATE);
     }
 
-    FFTWRunner(const SignalInfo& info, int direction): FFTWRunner(info.SignalSize(), info.Dimensions(), info.SignalWidth(), direction) {
+    FFTWRunner(const SignalInfo& info, int direction): FFTWRunner(info.SignalSize(), info.GetAllDimensions(), direction) {
     }
 
     ~FFTWRunner() {

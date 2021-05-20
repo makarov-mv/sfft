@@ -2,24 +2,65 @@
 
 class SignalInfo {
 public:
-    SignalInfo(int dimensions, int64_t signal_width):
-            dimensions_(dimensions), signal_width_(signal_width), signal_size_(CalcSignalSize(dimensions, signal_width)), log_signal_width_(CalcLog(signal_width)) {
+    static const int MAX_DIM = 6;
+
+    SignalInfo(std::vector<int> signal_width):
+            dimensions_(signal_width.size()) {
+        signal_size_ = 1;
+        for (int i = 0; i < dimensions_; ++i) {
+            signal_width_[i] = signal_width[i];
+            signal_size_ *= signal_width[i];
+            log_signal_width_[i] = CalcLog(signal_width[i]);
+        }
     }
+
+    explicit SignalInfo(int dimensions, int signal_width): SignalInfo(std::vector<int>(dimensions, signal_width)) {}
 
     int Dimensions() const {
         return dimensions_;
     }
 
-    int64_t SignalWidth() const {
-        return signal_width_;
+    int SignalWidth(int pos) const {
+        return signal_width_[pos];
+    }
+
+    std::vector<int> GetAllDimensions() const {
+        std::vector<int> res(dimensions_);
+        for (int i = 0; i < dimensions_; ++i) {
+            res[i] = signal_width_[i];
+        }
+        return res;
+    }
+
+    int MaxLogWidth() const {
+        int max = 0;
+        for (int i = 0; i < dimensions_; ++i) {
+            if (max < log_signal_width_[i]) {
+                max = log_signal_width_[i];
+            }
+        }
+        return max;
     }
 
     bool IsSmallSignalWidth() const {
-        return signal_width_ <= SMALL_SIGNAL_WIDTH;
+        for (int i = 0; i < dimensions_; ++i) {
+           if (signal_width_[i] > SMALL_SIGNAL_WIDTH) {
+               return false;
+           }
+        }
+        return true;
     }
 
-    int64_t LogSignalWidth() const {
-        return log_signal_width_;
+    int LogSignalWidth(int pos) const {
+        return log_signal_width_[pos];
+    }
+
+    int LogSignalSize() const {
+        int sum = 0;
+        for (int i = 0; i < dimensions_; ++i) {
+            sum += log_signal_width_[i];
+        }
+        return sum;
     }
 
     int64_t SignalSize() const {
@@ -27,22 +68,22 @@ public:
     }
 
     bool operator==(const SignalInfo& other) const {
-        return dimensions_ == other.dimensions_ && signal_width_ == other.signal_width_;
+        if (dimensions_ != other.dimensions_) {
+            return false;
+        }
+        for (int i = 0; i < dimensions_; ++i) {
+            if (signal_width_[i] != other.signal_width_[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 
 private:
-    static int64_t CalcSignalSize(int dimensions, int64_t signal_width) {
-        int64_t res = 1;
-        for (int i = 0; i < dimensions; ++i) {
-            res *= signal_width;
-        }
-        return res;
-    }
-
     int dimensions_;
-    int64_t signal_width_;
+    int signal_width_[MAX_DIM];
     int64_t signal_size_;
-    int64_t log_signal_width_;
+    int log_signal_width_[MAX_DIM];
 };
 
 
@@ -105,7 +146,7 @@ public:
     int64_t Flatten() const {
         int64_t res = 0;
         for (int i = info_.Dimensions() - 1; i >= 0; --i) {
-            res = (res << info_.LogSignalWidth()) | indices_[i];
+            res = (res << info_.LogSignalWidth(i)) | indices_[i];
         }
         return res;
     }
@@ -126,39 +167,47 @@ public:
 
     Key IncreaseAt(int index, int64_t value) const {
         Key res(*this);
-        res.indices_[index] += value + info_.SignalWidth();
-        res.indices_[index] %= info_.SignalWidth();
+        res.indices_[index] += value + info_.SignalWidth(index);
+        res.indices_[index] %= info_.SignalWidth(index);
         return res;
     }
 
     void StoreDifference(const Key& a, const Key& b) {
-        int64_t mod = info_.SignalWidth() - 1;
         for (int i = 0; i < info_.Dimensions(); ++i) {
-            indices_[i] = (a.indices_[i] - b.indices_[i] + info_.SignalWidth()) & mod;
+            indices_[i] = (a.indices_[i] - b.indices_[i] + info_.SignalWidth(i)) & (info_.SignalWidth(i) - 1);
         }
     }
 
     Key operator-() const {
         Key res(info_);
         for (int i = 0; i < info_.Dimensions(); ++i) {
-            res.indices_[i] = (-indices_[i] + info_.SignalWidth()) % info_.SignalWidth();
+            res.indices_[i] = (-indices_[i] + info_.SignalWidth(i)) % info_.SignalWidth(i);
         }
         return res;
     }
 
-    int64_t operator*(const Key& key) const {
+//    int64_t operator*(const Key& key) const {
+//        int64_t result = 0;
+//        for (int i = 0; i < info_.Dimensions(); ++i) {
+//            result += key[i] * indices_[i];
+//        }
+//        return result;
+//    }
+
+    // use with MaxLogWidth to get correct exp powers
+    int64_t GetProduct(const Key& key) const {
         int64_t result = 0;
+        int max_log = info_.MaxLogWidth();
         for (int i = 0; i < info_.Dimensions(); ++i) {
-            result += key[i] * indices_[i];
+            result += (key[i] * indices_[i]) * (1 << (max_log - info_.LogSignalWidth(i)));
         }
         return result;
     }
 
     void SetFromFlatten(int64_t flat) {
-        int64_t mod = info_.SignalWidth() - 1;
         for (int i = 0; i < info_.Dimensions(); ++i) {
-            indices_[i] = flat & mod;
-            flat >>= info_.LogSignalWidth();
+            indices_[i] = flat & (info_.SignalWidth(i) - 1);
+            flat >>= info_.LogSignalWidth(i);
         }
     }
 

@@ -302,7 +302,7 @@ TEST_CASE("Key multidim") {
     Key buf(info);
     buf.StoreDifference(a, b);
     REQUIRE(buf == Key(info, {5, 1, 4}));
-    REQUIRE(a * b == 4 * 7 + 5 * 4 + 7 * 3);
+    REQUIRE(a.GetProduct(b) == 4 * 7 + 5 * 4 + 7 * 3);
     REQUIRE(a.IncreaseAt(0, 3) == Key(info, {7, 5, 3}));
     REQUIRE(a.IncreaseAt(1, 3) == Key(info, {4, 0, 3}));
     REQUIRE(a.IncreaseAt(2, 3) == Key(info, {4, 5, 6}));
@@ -486,7 +486,7 @@ TEST_CASE("SparseFFT 1") {
 }
 
 TEST_CASE("SparseFFT 2") {
-    REQUIRE(RunSFFT({1, 8}, 3,
+    REQUIRE(RunSFFT(SignalInfo(1, 8), 3,
                     { 1.25               +0.i                 ,
                       -0.8169417382415922 -0.44194173824159216i,
                       0.625              +0.625i              ,

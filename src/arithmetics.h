@@ -10,7 +10,7 @@ using complex_t  = std::complex<double>;
 #define _USE_MATH_DEFINES
 const double PI = M_PI;
 const complex_t I = complex_t(0, 1);
-const double EPS = 1e-9;
+const double EPS = 1e-7;
 
 constexpr int SMALL_SIGNAL_WIDTH = 1 << 10;
 

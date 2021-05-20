@@ -20,18 +20,34 @@ TEST_CASE("PFT 8") {
     REQUIRE(RunPFTTest(out, info, 6));
 }
 
+TEST_CASE("PFT uneven 1") {
+    SignalInfo info(std::vector<int>({8, 16}));
+    std::vector<complex_t> out(info.SignalSize());
+    out[0] = 1;
+    out[1] = 2;
+    REQUIRE(RunPFTTest(out, info, 6));
+}
+
+TEST_CASE("PFT uneven 2") {
+    SignalInfo info(std::vector<int>({16, 8}));
+    std::vector<complex_t> out(info.SignalSize());
+    out[0] = 1;
+    out[1] = 2;
+    REQUIRE(RunPFTTest(out, info, 6));
+}
+
 TEST_CASE("PFT 8 shifted") {
     SignalInfo info{2, 8};
     std::vector<complex_t> out(info.SignalSize());
-    out[info.SignalWidth()] = 1;
-    out[info.SignalWidth()*2 + 1] = 2;
+    out[info.SignalWidth(1)] = 1;
+    out[info.SignalWidth(1)*2 + 1] = 2;
     REQUIRE(RunPFTTest(out, info, 6));
 }
 
 TEST_CASE("PFT 16") {
     SignalInfo info{2, 16};
     std::vector<complex_t> out(info.SignalSize());
-    for (int i = 0; i < info.SignalWidth(); ++i) {
+    for (int i = 0; i < info.SignalWidth(1); ++i) {
         out[i] = i;
     }
     REQUIRE(RunPFTTest(out, info));
@@ -40,8 +56,8 @@ TEST_CASE("PFT 16") {
 TEST_CASE("PFT diag") {
     SignalInfo info{2, 16};
     std::vector<complex_t> out(info.SignalSize());
-    for (int i = 0; i < info.SignalWidth(); ++i) {
-        out[i + i * info.SignalWidth()] = i + 1;
+    for (int i = 0; i < info.SignalWidth(1); ++i) {
+        out[i + i * info.SignalWidth(1)] = i + 1;
     }
     REQUIRE(RunPFTTest(out, info));
 }
@@ -49,9 +65,19 @@ TEST_CASE("PFT diag") {
 TEST_CASE("PFT 256") {
     SignalInfo info{3, 128};
     std::vector<complex_t> out(info.SignalSize());
-    for (int i = 0; i < info.SignalWidth(); ++i) {
+    for (int i = 0; i < info.SignalWidth(1); ++i) {
         out[i] = i;
-        out[info.SignalWidth() * i] = -i;
+        out[info.SignalWidth(1) * i] = -i;
+    }
+    REQUIRE(RunPFTTest(out, info));
+}
+
+TEST_CASE("PFT 256 uneven") {
+    SignalInfo info(std::vector<int>({128, 256, 32}));
+    std::vector<complex_t> out(info.SignalSize());
+    for (int i = 0; i < info.SignalWidth(1); ++i) {
+        out[i] = i;
+        out[info.SignalWidth(1) * i] = -i;
     }
     REQUIRE(RunPFTTest(out, info));
 }
@@ -61,8 +87,8 @@ TEST_CASE("PFT zero recovery") {
     std::vector<complex_t> out(info.SignalSize());
     out[0] = 1;
     out[1] = 1;
-    out[info.SignalWidth()] = 1;
-    out[info.SignalWidth() + 1] = 1;
+    out[info.SignalWidth(1)] = 1;
+    out[info.SignalWidth(1) + 1] = 1;
     auto runner = FFTWRunner(info, FFTW_BACKWARD);
     auto in = runner.Run(out);
     auto x = DataSignal(info, in.data());
@@ -75,10 +101,10 @@ TEST_CASE("PFT partial recovery") {
     std::vector<complex_t> out(info.SignalSize());
     out[0] = 1;
     out[1] = 1;
-    out[info.SignalWidth()] = 1;
-    out[info.SignalWidth() + 1] = 1;
-    out[info.SignalWidth()*3 + 1] = -1;
-    out[info.SignalWidth() + 4] = -2;
+    out[info.SignalWidth(1)] = 1;
+    out[info.SignalWidth(1) + 1] = 1;
+    out[info.SignalWidth(1)*3 + 1] = -1;
+    out[info.SignalWidth(1) + 4] = -2;
     auto runner = FFTWRunner(info, FFTW_BACKWARD);
     auto in = runner.Run(out);
     auto x = DataSignal(info, in.data());
@@ -86,10 +112,10 @@ TEST_CASE("PFT partial recovery") {
 
     REQUIRE(res.size() == 2);
     Key k(info);
-    k.SetFromFlatten(info.SignalWidth()*3 + 1);
+    k.SetFromFlatten(info.SignalWidth(1)*3 + 1);
     REQUIRE(res.find(k) != res.end());
     REQUIRE(CheckEqual(res.at(k), -1));
-    k.SetFromFlatten(info.SignalWidth() + 4);
+    k.SetFromFlatten(info.SignalWidth(1) + 4);
     REQUIRE(res.find(k) != res.end());
     REQUIRE(CheckEqual(res.at(k), -2));
 }

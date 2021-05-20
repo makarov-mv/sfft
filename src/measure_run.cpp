@@ -14,15 +14,15 @@ std::vector<complex_t> GenRandomSupport(const SignalInfo& info, int64_t sparsity
     return out;
 }
 
-std::vector<complex_t> GenDiracComb(const SignalInfo& info, int64_t sparsity) {
-    assert((sparsity & (sparsity - 1)) == 0);
-    std::uniform_int_distribution<int64_t> dist(0, info.SignalSize() - 1);
-    std::vector<complex_t> out(info.SignalSize());
-    for (int i = 0; i < info.SignalSize(); i += info.SignalSize() / sparsity) {
-        out[i] = CalcKernel(i * sparsity / info.SignalWidth(), sparsity);
-    }
-    return out;
-}
+//std::vector<complex_t> GenDiracComb(const SignalInfo& info, int64_t sparsity) {
+//    assert((sparsity & (sparsity - 1)) == 0);
+//    std::uniform_int_distribution<int64_t> dist(0, info.SignalSize() - 1);
+//    std::vector<complex_t> out(info.SignalSize());
+//    for (int i = 0; i < info.SignalSize(); i += info.SignalSize() / sparsity) {
+//        out[i] = CalcKernel(i * sparsity / info.SignalWidth(), sparsity);
+//    }
+//    return out;
+//}
 
 template <class Generator>
 std::vector<complex_t> GenRandomSupportWithOvertones(const SignalInfo& info, int64_t sparsity, Generator& gen) {
@@ -37,36 +37,36 @@ std::vector<complex_t> GenRandomSupportWithOvertones(const SignalInfo& info, int
         out[pos] += 1;
         Key overtone(info, pos);
         for (int j = 0; j < maxd - 1; ++j) {
-            out[overtone.IncreaseAt(j, info.SignalWidth() / 2).Flatten()] += 0.5;
+            out[overtone.IncreaseAt(j, info.SignalWidth(j) / 2).Flatten()] += 0.5;
         }
     }
     return out;
 }
 
-template <class Generator>
-std::vector<complex_t> GenCombined(const SignalInfo& info, int64_t sparsity, Generator& gen) {
-    assert((sparsity & (sparsity - 1)) == 0);
-    std::vector<complex_t> out = GenRandomSupport(info, sparsity / 2, gen);
-    for (int i = 0; i < info.SignalSize(); i += info.SignalSize() / (sparsity / 2)) {
-        out[i + 1] += CalcKernel(i * sparsity / 2 / info.SignalWidth(), sparsity / 2);
-    }
-    return out;
-}
+//template <class Generator>
+//std::vector<complex_t> GenCombined(const SignalInfo& info, int64_t sparsity, Generator& gen) {
+//    assert((sparsity & (sparsity - 1)) == 0);
+//    std::vector<complex_t> out = GenRandomSupport(info, sparsity / 2, gen);
+//    for (int i = 0; i < info.SignalSize(); i += info.SignalSize() / (sparsity / 2)) {
+//        out[i + 1] += CalcKernel(i * sparsity / 2 / info.SignalWidth(), sparsity / 2);
+//    }
+//    return out;
+//}
 
-std::vector<complex_t> Gen4DComb(const SignalInfo& info, int64_t sparsity) {
-    assert(info.Dimensions() == 4);
-    int64_t root = int(sqrt(sparsity));
-    assert(root * root == sparsity);
-    assert(info.SignalWidth() % root == 0);
-    int64_t step = info.SignalWidth() * info.SignalWidth() * info.SignalWidth();
-    std::vector<complex_t> out(info.SignalSize());
-    for (int i = 0; i < info.SignalWidth(); i += info.SignalWidth() / root) {
-        for (int j = 0; j < info.SignalWidth(); j += info.SignalWidth() / root) {
-            out[i * step + j + 1] = CalcKernel(j * root / info.SignalWidth(), root);
-        }
-    }
-    return out;
-}
+//std::vector<complex_t> Gen4DComb(const SignalInfo& info, int64_t sparsity) {
+//    assert(info.Dimensions() == 4);
+//    int64_t root = int(sqrt(sparsity));
+//    assert(root * root == sparsity);
+//    assert(info.SignalWidth() % root == 0);
+//    int64_t step = info.SignalWidth() * info.SignalWidth() * info.SignalWidth();
+//    std::vector<complex_t> out(info.SignalSize());
+//    for (int i = 0; i < info.SignalWidth(); i += info.SignalWidth() / root) {
+//        for (int j = 0; j < info.SignalWidth(); j += info.SignalWidth() / root) {
+//            out[i * step + j + 1] = CalcKernel(j * root / info.SignalWidth(), root);
+//        }
+//    }
+//    return out;
+//}
 
 class SignalGenerator {
 public:
@@ -88,19 +88,19 @@ public:
     }
 };
 
-class DiracCombGenerator : public SignalGenerator {
-public:
-    std::vector<complex_t> GenSignal(const SignalInfo& info, int64_t sparsity, std::mt19937_64&) override {
-        return GenDiracComb(info, sparsity);
-    }
-};
-
-class RandomCombGenerator : public SignalGenerator {
-public:
-    std::vector<complex_t> GenSignal(const SignalInfo& info, int64_t sparsity, std::mt19937_64& gen) override {
-        return GenCombined(info, sparsity, gen);
-    }
-};
+//class DiracCombGenerator : public SignalGenerator {
+//public:
+//    std::vector<complex_t> GenSignal(const SignalInfo& info, int64_t sparsity, std::mt19937_64&) override {
+//        return GenDiracComb(info, sparsity);
+//    }
+//};
+//
+//class RandomCombGenerator : public SignalGenerator {
+//public:
+//    std::vector<complex_t> GenSignal(const SignalInfo& info, int64_t sparsity, std::mt19937_64& gen) override {
+//        return GenCombined(info, sparsity, gen);
+//    }
+//};
 
 void PrintDur(const std::chrono::nanoseconds& dur) {
     std::cout << std::chrono::duration<double, std::milli>(dur).count();
@@ -376,10 +376,14 @@ public:
             p_.push_back(p);
 
             CheckInput("info:", in);
-            int64_t n;
             int d;
-            in >> d >> n;
-            info_.emplace_back(d, 1ll << n);
+            in >> d;
+            std::vector<int> width(d);
+            for (int i = 0; i < d; ++i) {
+                in >> width[i];
+                width[i] = 1 << width[i];
+            }
+            info_.emplace_back(width);
 
             CheckInput("sparsity:", in);
             int sparsity;
@@ -392,9 +396,11 @@ public:
             if (signal_type == "random") {
                 generator_.push_back(std::make_unique<RandomSignalGeneratorWithOvertones>());
             } else if (signal_type == "comb") {
-                generator_.push_back(std::make_unique<DiracCombGenerator>());
+//                generator_.push_back(std::make_unique<DiracCombGenerator>());
+                throw std::runtime_error("not implemented");
             } else if (signal_type == "combined") {
-                generator_.push_back(std::make_unique<RandomCombGenerator>());
+//                generator_.push_back(std::make_unique<RandomCombGenerator>());
+                throw std::runtime_error("not implemented");
             } else {
                 throw std::runtime_error("unknown signal type");
             }

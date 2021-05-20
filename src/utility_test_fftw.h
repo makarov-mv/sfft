@@ -9,5 +9,11 @@ bool RunFFTWTest(const std::vector<complex_t>& out, const SignalInfo& info, int6
     auto in = runner.Run(out);
     auto x = DataSignal(info, in.data());
     auto result = GetSignalFromMap(RecursiveSparseFFT(x, info, sparsity, rank, seed, settings), info);
+//    for (int i = 0; i < result.size(); ++i) {
+//        if (!CheckEqual(out[i], result[i])) {
+//            return false;
+//        }
+//    }
+//    return true;
     return std::equal(out.begin(), out.end(), result.begin(), CheckEqual);
 }
