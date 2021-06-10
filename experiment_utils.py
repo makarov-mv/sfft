@@ -2,11 +2,11 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 
-def make_graph(name, title, p, algs, algs_names, data, extra_data_path=''):
+def make_graph(name, title, p, algs, algs_names, data, extra_data_path='', time_bounds=(None, None)):
     ax = plt.axes()
     ax.set_xticks(p)
     milsec = 1e6
-
+    plt.ylim(time_bounds)
     for alg in algs:
         plt.plot(p, np.array(data[alg]) / milsec, label=algs_names[alg])
 

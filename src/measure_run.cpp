@@ -31,13 +31,34 @@ std::vector<complex_t> GenRandomSupportWithOvertones(const SignalInfo& info, int
     }
     std::uniform_int_distribution<int64_t> dist(0, info.SignalSize() - 1);
     std::vector<complex_t> out(info.SignalSize());
-    int maxd = std::min(4, info.Dimensions() + 1);
+    int maxd = info.Dimensions() + 1;
     for (int i = 0; i < sparsity / maxd; ++i) {
         auto pos = dist(gen);
         out[pos] += 1;
         Key overtone(info, pos);
         for (int j = 0; j < maxd - 1; ++j) {
             out[overtone.IncreaseAt(j, info.SignalWidth(j) / 2).Flatten()] += 0.5;
+        }
+    }
+    return out;
+}
+
+template <class Generator>
+std::vector<complex_t> GenCubeSupport(const SignalInfo& info, int64_t sparsity, Generator& gen) {
+    std::uniform_int_distribution<int64_t> dist(0, info.SignalSize() - 1);
+    int cube_size = (1 << info.Dimensions());
+    int cube_count = sparsity / cube_size;
+    std::vector<complex_t> out(info.SignalSize());
+    for (int i = 0; i < cube_count; ++i) {
+        auto pos = dist(gen);
+        for (int j = 0; j < cube_size; ++j) {
+            Key overtone(info, pos);
+            for (int h = 0; h < info.Dimensions(); ++h) {
+                if ((1 << h) & j) {
+                    overtone = overtone.IncreaseAt(h, info.SignalWidth(h) / 2);
+                }
+            }
+            out[overtone.Flatten()] += 1;
         }
     }
     return out;
@@ -88,6 +109,13 @@ public:
     }
 };
 
+class CubeSignalGenerator : public SignalGenerator {
+public:
+    std::vector<complex_t> GenSignal(const SignalInfo& info, int64_t sparsity, std::mt19937_64& gen) override {
+        return GenCubeSupport(info, sparsity, gen);
+    }
+};
+
 //class DiracCombGenerator : public SignalGenerator {
 //public:
 //    std::vector<complex_t> GenSignal(const SignalInfo& info, int64_t sparsity, std::mt19937_64&) override {
@@ -123,16 +151,20 @@ public:
 
 auto RunBenchmark(const std::string&, const std::vector<DataSignal>& signals, Algorithm& alg, std::vector<std::chrono::nanoseconds>& res) {
     using clock = std::chrono::system_clock;
-//    std::cout << name << ": ";
-    auto start = clock::now();
+    const int repeats = 5;
+    // do a dry run to mb escape border effects
     for (int i = 0; i < static_cast<int>(signals.size()); ++i) {
         alg.Run(signals[i], i);
     }
+    auto start = clock::now();
+    for (int i = 0; i < static_cast<int>(signals.size()); ++i) {
+        for (int j = 0; j < repeats; ++j) {
+            alg.Run(signals[i], i);
+        }
+    }
     auto dur = clock::now() - start;
-    dur /= signals.size();
-//    PrintDur(dur);
+    dur /= (signals.size() * repeats);
     res.push_back(dur);
-//    std::cout << ", ";
 }
 
 //class Benchmark {
@@ -401,6 +433,8 @@ public:
             } else if (signal_type == "combined") {
 //                generator_.push_back(std::make_unique<RandomCombGenerator>());
                 throw std::runtime_error("not implemented");
+            } else if (signal_type == "cubes") {
+                generator_.push_back(std::make_unique<CubeSignalGenerator>());
             } else {
                 throw std::runtime_error("unknown signal type");
             }
@@ -425,6 +459,8 @@ public:
                         in >> settings.zero_test_koef;
                     } else if (field == "assume_random_phase") {
                         in >> settings.assume_random_phase;
+                    } else if (field == "use_projection_recovery") {
+                        in >> settings.use_projection_recovery;
                     } else {
                         throw std::runtime_error("no such settings field: " + field);
                     }
@@ -489,7 +525,7 @@ private:
 };
 
 int main() {
-    std::mt19937_64 gen(123423);
+    std::mt19937_64 gen(123873);
     std::vector<int64_t> npow;
     std::map<std::string, std::vector<std::chrono::nanoseconds>> dur;
     StreamBenchmark bench(std::cin);
