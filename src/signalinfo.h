@@ -1,4 +1,7 @@
 #include "arithmetics.h"
+#include <x86intrin.h>
+#include <iostream>
+
 
 class SignalInfo {
 public:
@@ -48,7 +51,7 @@ private:
 
 class Key {
 public:
-    const static int MAX_DIM = 6;
+    const static int MAX_DIM = 4;
     explicit Key(const SignalInfo& info) : info_(info) {
         SetZero();
     }
@@ -67,21 +70,21 @@ public:
         return *this;
     }
 
-    explicit Key(const SignalInfo& info, std::vector<int64_t> key) : info_(info) {
+    explicit Key(const SignalInfo& info, std::vector<int32_t> key) : info_(info) {
         assert(info.Dimensions() == static_cast<int>(key.size()));
         for (int i = 0; i < info_.Dimensions(); ++i) {
             indices_[i] = key[i];
         }
     }
 
-    explicit Key(const SignalInfo& info, const std::initializer_list<int64_t>& key) : info_(info) {
+    explicit Key(const SignalInfo& info, const std::initializer_list<int32_t>& key) : info_(info) {
         assert(info.Dimensions() == static_cast<int>(key.size()));
         for (int i = 0; i < info_.Dimensions(); ++i) {
             indices_[i] = data(key)[i];
         }
     }
 
-    explicit Key(const SignalInfo& info, int64_t flatten) : info_(info) {
+    explicit Key(const SignalInfo& info, int32_t flatten) : info_(info) {
         SetZero();
         SetFromFlatten(flatten);
     }
@@ -93,21 +96,39 @@ public:
     }
 
     // leftmost dimension is highest in the tree
-    const int64_t& operator[](int index) const {
+    const int32_t& operator[](int index) const {
         return indices_[index];
     }
 
-    int64_t& operator[](int index) {
+    int32_t& operator[](int index) {
         return indices_[index];
     }
 
     // in flattened form, least significant dimension is highest
-    int64_t Flatten() const {
-        int64_t res = 0;
+    int32_t Flatten() const {
+        int32_t res = 0;
+        #pragma omp simd
         for (int i = info_.Dimensions() - 1; i >= 0; --i) {
             res = (res << info_.LogSignalWidth()) | indices_[i];
         }
         return res;
+        /*
+        if (info_.Dimensions() <= 1){
+            return indices_[0];
+        } else {
+            __m128i _key1;
+            __m128 _key1f, _key2f, _result;
+            
+            _key1 = _mm_load_si128 ((__m128i *)&indices_[0]);
+            
+            _key1f = _mm_cvtepi32_ps (_key1);
+            _key2f = _mm_setr_ps (1, 1<< info_.LogSignalWidth(), 1<< 2*info_.LogSignalWidth(), 1<< 3*info_.LogSignalWidth());
+
+            _result = _mm_dp_ps (_key1f, _key2f, (1<<8) - 1);
+            
+            return _mm_cvtt_ss2si (_result);
+        }
+        */
     }
 
     bool operator==(const Key& other) const {
@@ -124,7 +145,7 @@ public:
         return info_;
     }
 
-    Key IncreaseAt(int index, int64_t value) const {
+    Key IncreaseAt(int index, int32_t value) const {
         Key res(*this);
         res.indices_[index] += value + info_.SignalWidth();
         res.indices_[index] %= info_.SignalWidth();
@@ -132,38 +153,108 @@ public:
     }
 
     void StoreDifference(const Key& a, const Key& b) {
-        int64_t mod = info_.SignalWidth() - 1;
+        int32_t mod_ = info_.SignalWidth() - 1;
+        /*
+        #pragma omp simd
         for (int i = 0; i < info_.Dimensions(); ++i) {
-            indices_[i] = (a.indices_[i] - b.indices_[i] + info_.SignalWidth()) & mod;
+            indices_[i] = (a.indices_[i] - b.indices_[i] + info_.SignalWidth()) & mod_;
         }
+         */
+        if (info_.Dimensions() <= 1){
+            indices_[0] = (a.indices_[0] - b.indices_[0] + info_.SignalWidth()) & mod_;
+        } else {
+            __m128i _keya, _keyb, _keyc, _result, _mod;
+        
+            _keya = _mm_load_si128 ((__m128i *)&a[0]);
+            _keyb = _mm_load_si128 ((__m128i *)&b[0]);
+        
+            _result = _mm_sub_epi32 (_keya, _keyb);
+            
+            _keyc = _mm_set1_epi32 ((int32_t) info_.SignalWidth());
+            _mod = _mm_set1_epi32 ( mod_ );
+        
+            _result = _mm_add_epi32 (_result, _keyc);
+            _result = _mm_and_si128 (_result,_mod);
+        
+            _mm_store_si128 ((__m128i *)&indices_[0], _result);
+        }
+        
     }
 
     Key operator-() const {
         Key res(info_);
+        int32_t mod_ = info_.SignalWidth() - 1;
+        /*
+        #pragma omp simd
         for (int i = 0; i < info_.Dimensions(); ++i) {
-            res.indices_[i] = (-indices_[i] + info_.SignalWidth()) % info_.SignalWidth();
+            res.indices_[i] = (-indices_[i] + info_.SignalWidth()) & mod_;
         }
+        */
+        if (info_.Dimensions() <= 1){
+            res.indices_[0] = (-indices_[0] + info_.SignalWidth()) & mod_;
+        } else {
+            __m128i _key, _width, _result, _mod;
+            
+            _width = _mm_set1_epi32 ((int32_t) info_.SignalWidth());
+            
+            _key = _mm_load_si128 ((__m128i *)&indices_[0]);
+        
+            _result = _mm_sub_epi32 (_width, _key);
+            
+            _mod = _mm_set1_epi32 ( mod_ );
+            
+            _result = _mm_and_si128 (_result,_mod);
+                    
+            _mm_store_si128 ((__m128i *)&res[0], _result);
+        }
+                
         return res;
     }
 
-    int64_t operator*(const Key& key) const {
-        int64_t result = 0;
+    int32_t operator*(const Key& key) const {
+        /*
+        int32_t result = 0;
+        #pragma omp simd
         for (int i = 0; i < info_.Dimensions(); ++i) {
-            result += key[i] * indices_[i];
-        }
+                result += key[i] * indices_[i];
+            }
         return result;
+        */
+        if (info_.Dimensions() <= 1){
+            return key[0] * indices_[0];
+        } else {
+            
+            __m128i _key1, _key2;
+            __m128 _key1f, _key2f, _result;
+            
+            _key1 = _mm_load_si128 ((__m128i *)&indices_[0]);
+            _key2 = _mm_load_si128 ((__m128i *)&key[0]);
+            
+            _key1f = _mm_cvtepi32_ps (_key1);
+            _key2f = _mm_cvtepi32_ps (_key2);
+
+            _result = _mm_dp_ps (_key1f, _key2f, (1<<8) - 1);
+            
+            return _mm_cvtt_ss2si (_result);
+            
+            /*
+            #pragma omp simd
+            return key[0] * indices_[0] + key[1] * indices_[1] + key[2] * indices_[2] + key[3] * indices_[3];
+            */
+            
+        }
+        
     }
 
-    void SetFromFlatten(int64_t flat) {
-        int64_t mod = info_.SignalWidth() - 1;
+    void SetFromFlatten(int32_t flat) {
+        int32_t mod_ = info_.SignalWidth() - 1;
         for (int i = 0; i < info_.Dimensions(); ++i) {
-            indices_[i] = flat & mod;
+            indices_[i] = flat & mod_;
             flat >>= info_.LogSignalWidth();
         }
     }
 
 private:
-
     SignalInfo info_;
-    int64_t indices_[MAX_DIM];
+    int32_t indices_[MAX_DIM] = {0};
 };

@@ -11,7 +11,7 @@ bool CheckEqual(complex_t a, complex_t b) {
 
 std::vector<complex_t> GetSignalFromMap(const FrequencyMap& recovered_freq, const SignalInfo& info) {
     std::vector<complex_t> signal(info.SignalSize());
-    for (int64_t i = 0; i < info.SignalSize(); ++i) {
+    for (int32_t i = 0; i < info.SignalSize(); ++i) {
         auto it = recovered_freq.find(Key{info, i});
         if (it != recovered_freq.end()) {
             signal[i] = it->second;

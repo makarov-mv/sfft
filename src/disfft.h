@@ -38,7 +38,7 @@ public:
 private:
     SignalInfo info_;
     std::mt19937_64 rand_gen_;
-    std::uniform_int_distribution<int64_t> index_gen_;
+    std::uniform_int_distribution<int32_t> index_gen_;
 };
 
 struct TransformSettings {
