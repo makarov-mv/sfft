@@ -1,5 +1,6 @@
 #include "arithmetics.h"
 #include "assert.h"
+#include "math.h"
 
 double cos_table[1 << 10];
 double sin_table[1 << 10];

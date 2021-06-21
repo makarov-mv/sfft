@@ -6,8 +6,11 @@ using Node = SplittingTree::Node;
 using NodePtr = SplittingTree::NodePtr;
 
 bool CheckEqual(complex_t a, complex_t b) {
-    return !NonZero(a - b);
+    auto value = a-b;
+    return value.real() < 1e-7 && value.real() > -1e-7 && value.imag() < 1e-7 && value.imag() > -1e-7;
 }
+
+
 
 std::vector<complex_t> GetSignalFromMap(const FrequencyMap& recovered_freq, const SignalInfo& info) {
     std::vector<complex_t> signal(info.SignalSize());

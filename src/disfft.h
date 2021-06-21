@@ -414,7 +414,8 @@ FrequencyMap RecursiveSparseFFT(const Signal& x, const SignalInfo& info, int64_t
         CombFiltration(x, info, sparsity, prefiltered);
         sparsity += prefiltered.size();
     }
-    if (settings.use_projection_recovery) {
+    
+    if (settings.use_projection_recovery && (info.SignalSize() / info.SignalWidth() < settings.zero_test_koef*pow(sparsity,3)) ) {
         // PFT is assumed to be always correct, therefore we can just overwrite frequencies and not change the sparsity
         auto res = ProjectionFT(x, info, 2);
 //        printf("width: %i, recovered: %i\n", (int) info.SignalWidth(), (int) res.size());
@@ -422,6 +423,7 @@ FrequencyMap RecursiveSparseFFT(const Signal& x, const SignalInfo& info, int64_t
             prefiltered[w.first] = w.second;
         }
         sparsity = std::max<int64_t>(1, sparsity - res.size());
+        //std::cout << "log n: " << info.LogSignalWidth() << ", rank: " << rank << ", sparsity after projection: " << sparsity << '\n';
     }
     
     NodePtr parent(nullptr);
@@ -432,13 +434,13 @@ FrequencyMap RecursiveSparseFFT(const Signal& x, const SignalInfo& info, int64_t
     
     IndexGenerator delta(info, sparsity, settings.zero_test_koef, seed);
     
-    double step = pow(sparsity / 1.0, 1. / rank);
+    double step = pow(sparsity / 0.5, 1. / rank);
     std::vector<int> sparsities(rank);
     sparsities[rank - 1] = sparsity;
     double curspars = sparsity / step;
     for (int i = rank - 2; i >= 0; --i) {
-        curspars /= step;
         sparsities[i] = std::max<int>(1, int(curspars));
+        curspars /= step;
     }
     std::optional<FrequencyMap> res;
         
