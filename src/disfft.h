@@ -25,6 +25,7 @@ public:
             for (int64_t iter = 0; iter < table_size; ++iter) {
                 Next(time);
                 indices_.push_back(time);
+                //random_signs_.push_back((index_gen_(rand_gen_)%2 - 0.5)*2.);
             }
 
     }
@@ -34,6 +35,7 @@ public:
     }
     
     std::vector<Key> indices_;
+    //std::vector<double> random_signs_;
 
 private:
     SignalInfo info_;
@@ -130,11 +132,13 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
     
     complex_t total_sum = 0;
     
+    //std::cout << "signal size: " << info.SignalSize() << ", sparsity: " << sparsity << ", max iter: " << max_iters << '\n';
     
     for (int64_t iter = 0; iter < max_iters; ++iter) {
         //delta.Next(time);
         time = delta.indices_[iter];
-                
+        //double rand_sign = 1.; //delta.random_signs_[iter];
+        
         if (info.IsSmallSignalWidth()) {
             for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
                 recovered_sum[j] += complex_t(GetTableCos(freq_precalc[j].first * time, info.SignalWidth()), GetTableSin(freq_precalc[j].first * time, info.SignalWidth()));
@@ -147,7 +151,7 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
                 
         for (int j =0; j < static_cast<int>(filter.FilterTime().size()); ++j) {
             diff.StoreDifference(time, filter.FilterTime()[j].first);
-            filtered_sum[j] +=  x.ValueAtTime(diff);
+            filtered_sum[j] += x.ValueAtTime(diff);
         }
         
         if (iter < 1){
@@ -174,10 +178,10 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
     for (int j =0; j < static_cast<int>(filter.FilterTime().size()); ++j) {
         total_sum -= filtered_sum[j] * filter.FilterTime()[j].second;
     }
-    if (NonZero(total_sum / static_cast<double>(max_iters))) {
+    if (NonZero(total_sum / sqrt(static_cast<double>(max_iters)))) {
         return true;
     }
-
+    //std::cout << "zerotest filtered value: " << total_sum / sqrt(static_cast<double>(max_iters)) << '\n';
     return false;
 }
 
@@ -190,6 +194,7 @@ std::optional<FrequencyMap> SparseFFT(const Signal& x, const SignalInfo& info, i
     while (!tree.IsEmpty() && (settings.assume_random_phase || (tree.LeavesCount() + static_cast<int>(recovered_freq.size())) <= expected_sparsity)) {
         NodePtr node = tree.GetLightestNode();
         if (node->level == info.Dimensions() * info.LogSignalWidth()) {
+            //std::cout << "now we are peeling a freq" << '\n';
             auto filter = Filter(tree, node, info);
             complex_t recovered = 0;
             for (const auto& freq : total_freq) {
@@ -207,6 +212,9 @@ std::optional<FrequencyMap> SparseFFT(const Signal& x, const SignalInfo& info, i
         } else {
             node->AddChildren();
             int64_t zerotest_budget = expected_sparsity - (1-settings.assume_random_phase)*(tree.LeavesCount()-2 + static_cast<int>(recovered_freq.size()));
+            
+            //std::cout << "sparsity: " << expected_sparsity << ", zerotest budget: " << zerotest_budget << '\n';
+            
             if (!ZeroTest(x, total_freq, tree, node->left, info, zerotest_budget, delta, settings)) {
                 tree.RemoveNode(node->left);
             }
@@ -408,6 +416,7 @@ FrequencyMap RecursiveSparseFFT(const Signal& x, const SignalInfo& info, int64_t
         PrepareCosSinTables(info.SignalWidth());
     }
     
+    //std::cout << "rank: " << rank << ", signal size: " << info.SignalSize() << '\n';
     
     FrequencyMap prefiltered;
     if (settings.use_comb) {

@@ -20,7 +20,7 @@ std::vector<complex_t> GenDiracComb(const SignalInfo& info, int64_t sparsity) {
     std::uniform_int_distribution<int64_t> dist(0, info.SignalSize() - 1);
     std::vector<complex_t> out(info.SignalSize());
     for (int i = 0; i < info.SignalSize(); i += info.SignalSize() / sparsity) {
-        out[i] = CalcKernel(i * sparsity / info.SignalWidth(), sparsity);
+        out[i] = 1;//CalcKernel(i, info.SignalWidth());
     }
     return out;
 }

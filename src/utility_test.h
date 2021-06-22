@@ -7,7 +7,7 @@ using NodePtr = SplittingTree::NodePtr;
 
 bool CheckEqual(complex_t a, complex_t b) {
     auto value = a-b;
-    return value.real() < 1e-7 && value.real() > -1e-7 && value.imag() < 1e-7 && value.imag() > -1e-7;
+    return value.real() < 1e-6 && value.real() > -1e-6 && value.imag() < 1e-6 && value.imag() > -1e-6;
 }
 
 
