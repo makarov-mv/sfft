@@ -7,7 +7,7 @@
 #include "tree.h"
 #include "signal.h"
 #include "pair_allocator.h"
-#include <memory_resource>
+#include <experimental/memory_resource>
 
 namespace std {
     template<>
@@ -93,8 +93,9 @@ public:
         complex_t freq = 1.;
         for (size_t i = 0; i < path_.size(); ++i) {
             //int current_period = CalcCurrentPeriod(i);
-            int64_t numer = key[current_period_[i]] - phase_shift_[i] + (1 << SubtreeLevel_[i]);
+            
             int64_t denom = 1 << SubtreeLevel_[i];
+            int64_t numer = key[current_period_[i]] - phase_shift_[i] + denom; //(1 << SubtreeLevel_[i]);
             if ((numer & (denom-1)) == (1 << (SubtreeLevel_[i]-1))){
                 return 0;
             } else {

@@ -3,6 +3,7 @@
 #include "map"
 #include "disfft.h"
 #include "utility_test_fftw.h"
+#include "utility_test.h"
 
 template <class Generator>
 std::vector<complex_t> GenRandomSupport(const SignalInfo& info, int64_t sparsity, Generator& gen) {
@@ -19,7 +20,7 @@ std::vector<complex_t> GenDiracComb(const SignalInfo& info, int64_t sparsity) {
     std::uniform_int_distribution<int64_t> dist(0, info.SignalSize() - 1);
     std::vector<complex_t> out(info.SignalSize());
     for (int i = 0; i < info.SignalSize(); i += info.SignalSize() / sparsity) {
-        out[i] = CalcKernel(i * sparsity / info.SignalWidth(), sparsity);
+        out[i] = 1;//CalcKernel(i, info.SignalWidth());
     }
     return out;
 }
@@ -118,20 +119,20 @@ class Algorithm {
 public:
     virtual ~Algorithm() = default;
     virtual void Prepare(const SignalInfo& info, int sparsity, TransformSettings settings) = 0;
-    virtual void Run(const DataSignal& signal, int seed) = 0;
+    virtual void Run(const DataSignal& signal, int seed, std::chrono::nanoseconds& dur, const std::vector<complex_t>& FTsignal) = 0;
 };
 
-auto RunBenchmark(const std::string&, const std::vector<DataSignal>& signals, Algorithm& alg, std::vector<std::chrono::nanoseconds>& res) {
-    using clock = std::chrono::system_clock;
+auto RunBenchmark(const std::string&, const DataSignal& signals, Algorithm& alg, std::vector<std::chrono::nanoseconds>& res, const std::vector<complex_t>& FTsignals, int samples) {
+    //using clock = std::chrono::system_clock;
 //    std::cout << name << ": ";
-    auto start = clock::now();
-    for (int i = 0; i < static_cast<int>(signals.size()); ++i) {
-        alg.Run(signals[i], i);
+    
+    for (int i = 0; i < samples; ++i) {
+        std::chrono::nanoseconds dur;
+        alg.Run(signals, i, dur, FTsignals);
+        //dur /= signals.size();
+        res.push_back(dur);
     }
-    auto dur = clock::now() - start;
-    dur /= signals.size();
 //    PrintDur(dur);
-    res.push_back(dur);
 //    std::cout << ", ";
 }
 
@@ -289,8 +290,13 @@ public:
         runner_.emplace(info, FFTW_FORWARD);
     }
 
-    void Run(const DataSignal& signal, int) override {
-        (void) runner_.value().Run(signal.Data());
+    void Run(const DataSignal& signal, int, std::chrono::nanoseconds& dur, const std::vector<complex_t>& FTsignal) override {
+        auto start = std::chrono::system_clock::now();
+        auto result = runner_.value().Run(signal.Data());
+        dur = std::chrono::system_clock::now() - start;
+        if (!std::equal(FTsignal.begin(), FTsignal.end(), result.begin(), CheckEqual)){
+            dur = std::chrono::nanoseconds(-1);
+        }
     }
 
 private:
@@ -310,8 +316,15 @@ public:
         settings_ = settings;
     }
 
-    void Run(const DataSignal& signal, int seed) override {
-        (void) RecursiveSparseFFT(signal, info_.value(), sparsity_, rank_, seed, settings_);
+    void Run(const DataSignal& signal, int seed, std::chrono::nanoseconds& dur, const std::vector<complex_t>& FTsignal) override {
+        auto start = std::chrono::system_clock::now();
+        FrequencyMap frequency = RecursiveSparseFFT(signal, info_.value(), sparsity_, rank_, seed, settings_);
+        dur = std::chrono::system_clock::now() - start;
+        
+        auto result = GetSignalFromMap(frequency, info_.value());
+        if (!std::equal(FTsignal.begin(), FTsignal.end(), result.begin(), CheckEqual)){
+            dur = std::chrono::nanoseconds(-1);
+        }
     }
 
 private:
@@ -332,8 +345,15 @@ public:
         settings_ = settings;
     }
 
-    void Run(const DataSignal& signal, int seed) override {
-        (void) RecursiveSparseFFT(signal, info_.value(), sparsity_, 1, seed, settings_);
+    void Run(const DataSignal& signal, int seed, std::chrono::nanoseconds& dur, const std::vector<complex_t>& FTsignal) override {
+        auto start = std::chrono::system_clock::now();
+        FrequencyMap frequency = RecursiveSparseFFT(signal, info_.value(), sparsity_, 1, seed, settings_);
+        dur = std::chrono::system_clock::now() - start;
+        
+        auto result = GetSignalFromMap(frequency, info_.value());
+        if (!std::equal(FTsignal.begin(), FTsignal.end(), result.begin(), CheckEqual)){
+            dur = std::chrono::nanoseconds(-1);
+        }
     }
 
 private:
@@ -417,6 +437,8 @@ public:
                         in >> settings.use_comb;
                     } else if (field == "zero_test_coef") {
                         in >> settings.zero_test_koef;
+                    } else if (field == "use_projection_recovery") {
+                        in >> settings.use_projection_recovery;
                     } else if (field == "assume_random_phase") {
                         in >> settings.assume_random_phase;
                     } else {
@@ -496,21 +518,22 @@ int main() {
         const int64_t sparsity = bench.Sparsity(iter);
         const int samples = bench.GetSamples();
 
-        std::vector<std::vector<complex_t>> signals;
-        std::vector<DataSignal> datasignals;
+        
         auto runner = FFTWRunner(info, FFTW_BACKWARD);
-        for (int i = 0; i < samples; ++i) {
-            auto out = bench.GenSignal(info, sparsity, gen, iter);
-            signals.emplace_back(runner.Run(out));
-            datasignals.emplace_back(info, signals.back().data());
-        }
+        auto out = bench.GenSignal(info, sparsity, gen, iter);
+        //for (int i = 0; i < samples; ++i) {
+        std::vector<complex_t> FTsignals = out;
+        std::vector<complex_t> signals = runner.Run(out);
+        DataSignal datasignals(info, signals.data());
+        //}
+        
         npow.push_back(p);
 
         for (auto& alg : bench.GetAlgs()) {
             auto settings = bench.PrepareSettings(alg.first, iter);
 //            std::cout << "p = " << p << ", ";
             alg.second->Prepare(info, sparsity, settings);
-            RunBenchmark(alg.first, datasignals, *alg.second, dur.at(alg.first));
+            RunBenchmark(alg.first, datasignals, *alg.second, dur.at(alg.first), FTsignals, samples);
 
 //            std::cout << std::endl;
         }

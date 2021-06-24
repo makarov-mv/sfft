@@ -1,5 +1,6 @@
 #include "arithmetics.h"
 #include "cassert"
+#include "math.h"
 
 double cos_table[SMALL_SIGNAL_WIDTH];
 double sin_table[SMALL_SIGNAL_WIDTH];
