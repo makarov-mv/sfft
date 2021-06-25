@@ -122,12 +122,12 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
     //x_kernel.expand(freq_precalc.size());
     //static AlignedVector y_kernel(freq_precalc.size());
     //y_kernel.expand(freq_precalc.size());
-    static std::vector<complex_t> recovered_sum;
-    recovered_sum.clear();
-    recovered_sum.assign(freq_precalc.size(), 0);
-    static std::vector<complex_t> filtered_sum;
-    filtered_sum.clear();
-    filtered_sum.assign(filter.FilterTime().size(), 0);
+    //static std::vector<complex_t> recovered_sum;
+    //recovered_sum.clear();
+    //recovered_sum.assign(freq_precalc.size(), 0);
+    //static std::vector<complex_t> filtered_sum;
+    //filtered_sum.clear();
+    //filtered_sum.assign(filter.FilterTime().size(), 0);
     double phi_koef = 2 * PI / info.SignalWidth();
     
     complex_t total_sum = 0;
@@ -139,21 +139,30 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
         time = delta.indices_[iter];
         //double rand_sign = 1.; //delta.random_signs_[iter];
         
+        complex_t recovered_sum = 0;
         if (info.IsSmallSignalWidth()) {
             for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
-                recovered_sum[j] += complex_t(GetTableCos(freq_precalc[j].first * time, info.SignalWidth()), GetTableSin(freq_precalc[j].first * time, info.SignalWidth()));
+                recovered_sum += complex_t(GetTableCos(freq_precalc[j].first * time, info.SignalWidth()), GetTableSin(freq_precalc[j].first * time, info.SignalWidth())) * freq_precalc[j].second;
             }
         } else {
             for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
-                recovered_sum[j] += complex_t(cos((freq_precalc[j].first * time) * phi_koef), sin((freq_precalc[j].first * time) * phi_koef));
+                recovered_sum += complex_t(cos((freq_precalc[j].first * time) * phi_koef), sin((freq_precalc[j].first * time) * phi_koef)) * freq_precalc[j].second;
             }
         }
-                
+        
+        
+        complex_t filtered_sum = 0;
         for (int j =0; j < static_cast<int>(filter.FilterTime().size()); ++j) {
             diff.StoreDifference(time, filter.FilterTime()[j].first);
-            filtered_sum[j] += x.ValueAtTime(diff);
+            filtered_sum += x.ValueAtTime(diff) * filter.FilterTime()[j].second;
         }
         
+        total_sum = recovered_sum / static_cast<double>(info.SignalSize()) - filtered_sum;
+        if (NonZero(total_sum)) {
+            return true;
+        }
+        
+        /*
         if (iter < 1){
             total_sum = 0;
 
@@ -168,8 +177,9 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
                 return true;
             }
         }
+        */
     }
-    
+    /*
     total_sum = 0;
     for (int j = 0; j < static_cast<int>(freq_precalc.size()); ++j) {
         total_sum += recovered_sum[j] * freq_precalc[j].second;
@@ -181,6 +191,7 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
     if (NonZero(total_sum / sqrt(static_cast<double>(max_iters)))) {
         return true;
     }
+    */
     //std::cout << "zerotest filtered value: " << total_sum / sqrt(static_cast<double>(max_iters)) << '\n';
     return false;
 }
@@ -443,7 +454,7 @@ FrequencyMap RecursiveSparseFFT(const Signal& x, const SignalInfo& info, int64_t
     
     IndexGenerator delta(info, sparsity, settings.zero_test_koef, seed);
     
-    double step = pow(sparsity / 0.5, 1. / rank);
+    double step = pow(sparsity / 2.0, 1. / rank);
     std::vector<int> sparsities(rank);
     sparsities[rank - 1] = sparsity;
     double curspars = sparsity / step;
