@@ -18,7 +18,7 @@ public:
     }
 
     bool IsSmallSignalWidth() const {
-        return signal_width_ <= (1 << 10);
+        return signal_width_ <= SMALL_SIGNAL_WIDTH;
     }
 
     int64_t LogSignalWidth() const {
