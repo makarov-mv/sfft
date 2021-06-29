@@ -127,9 +127,9 @@ parser = argparse.ArgumentParser(description="Run experiments. Note that not all
 parser.add_argument("--no_graph", action='store_true', help='whether to generate graph')
 parser.add_argument("--sparsity", action='store', default=32, type=int, help='signal sparsity')
 parser.add_argument("--samples", action='store', default=50, type=int, help='number of samples to average over')
-parser.add_argument("--dimensions", action='store', default=1, type=int, help='number of dimensions')
-parser.add_argument("--first_logn", action='store', default=10, type=int, help='logarithm of the first value of n to test')
-parser.add_argument("--last_logn", action='store', default=24, type=int, help='logarithm of the last value of n to test')
+parser.add_argument("--dimensions", action='store', default=4, type=int, help='number of dimensions')
+parser.add_argument("--first_logn", action='store', default=2, type=int, help='logarithm of the first value of n to test')
+parser.add_argument("--last_logn", action='store', default=6, type=int, help='logarithm of the last value of n to test')
 parser.add_argument("--use_comb_filter", action='store', default=0, type=int, help='whether to use comb filter')
 parser.add_argument("--use_projection_recovery", action='store', default=0, type=int, help='whether to use projection recovery')
 parser.add_argument("--signal_type", choices=['random', 'comb', 'combined'], default='comb', help='choose signal type to run experiments on')
@@ -169,7 +169,7 @@ for i in range(len(results)):
     args.zero_test_coef = coeffs[i]
     p, results[i] = run_measure_run(algs, args)
 
-make_graph('{}-dimensional-{}'.format(
-        args.dimensions, args.signal_type) + args.output, title, p, algs, plot_names, results, args.samples, args.extra_data)
+make_graph('{}-dimensional-{}{}'.format(
+        args.dimensions, args.signal_type, '-Proj' if args.use_projection_recovery else '') + args.output, title, p, algs, plot_names, results, args.samples, args.extra_data)
 
 

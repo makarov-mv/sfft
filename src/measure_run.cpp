@@ -17,10 +17,26 @@ std::vector<complex_t> GenRandomSupport(const SignalInfo& info, int64_t sparsity
 
 std::vector<complex_t> GenDiracComb(const SignalInfo& info, int64_t sparsity) {
     assert((sparsity & (sparsity - 1)) == 0);
-    std::uniform_int_distribution<int64_t> dist(0, info.SignalSize() - 1);
+    //std::uniform_int_distribution<int64_t> dist(0, info.SignalSize() - 1);
+    std::vector<Key> support;
+    support.emplace_back(Key(info));
+    std::vector<Key> updated_support;
+    
+    for (int i = 0; i < info.Dimensions(); ++i){
+        int r_s = sparsity / support.size();
+        int cur_sparsity = pow(2, llround(log2(r_s)/(info.Dimensions() - i)));
+        updated_support.clear();
+        for (int f = 0; f < static_cast<int>(support.size()); ++f){
+            for (int j = 0; j < info.SignalWidth(); j += info.SignalWidth()/cur_sparsity){
+                updated_support.emplace_back(support[f].IncreaseAt(i, j));
+            }
+        }
+        support = updated_support;
+    }
+        
     std::vector<complex_t> out(info.SignalSize());
-    for (int i = 0; i < info.SignalSize(); i += info.SignalSize() / sparsity) {
-        out[i] = 1;//CalcKernel(i, info.SignalWidth());
+    for (int i = 0; i < support.size(); i ++) {
+        out[support[i].Flatten()] = 1;//CalcKernel(i, info.SignalWidth());
     }
     return out;
 }
@@ -47,10 +63,12 @@ std::vector<complex_t> GenRandomSupportWithOvertones(const SignalInfo& info, int
 template <class Generator>
 std::vector<complex_t> GenCombined(const SignalInfo& info, int64_t sparsity, Generator& gen) {
     assert((sparsity & (sparsity - 1)) == 0);
-    std::vector<complex_t> out = GenRandomSupport(info, sparsity / 2, gen);
-    for (int i = 0; i < info.SignalSize(); i += info.SignalSize() / (sparsity / 2)) {
-        out[i + 1] += CalcKernel(i * sparsity / 2 / info.SignalWidth(), sparsity / 2);
+    std::uniform_int_distribution<int64_t> dist(0, info.SignalSize() - 1);
+    std::vector<complex_t> out = GenDiracComb(info, sparsity/2);
+    for (int i = 0; i < sparsity/2; ++i) {
+        out[dist(gen)] += 1;
     }
+
     return out;
 }
 
