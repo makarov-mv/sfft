@@ -33,13 +33,44 @@ std::vector<complex_t> GenDiracComb(const SignalInfo& info, int64_t sparsity) {
         }
         support = updated_support;
     }
-        
+    
     std::vector<complex_t> out(info.SignalSize());
     for (int i = 0; i < support.size(); i ++) {
         out[support[i].Flatten()] = 1;//CalcKernel(i, info.SignalWidth());
     }
     return out;
 }
+
+
+template <class Generator>
+std::vector<complex_t> GenTwoCombs(const SignalInfo& info, int64_t sparsity, Generator& gen) {
+    assert((sparsity & (sparsity - 1)) == 0);
+    std::uniform_int_distribution<int64_t> dist(0, info.SignalSize() - 1);
+    std::vector<complex_t> out = GenDiracComb(info, sparsity/2);
+    
+    std::vector<Key> support;
+    support.emplace_back(Key(info, dist(gen)));
+    std::vector<Key> updated_support;
+    for (int i = 0; i < info.Dimensions(); ++i){
+        int r_s = sparsity / (2*support.size());
+        int cur_sparsity = pow(2, llround(log2(r_s)/(info.Dimensions() - i)));
+        updated_support.clear();
+        for (int f = 0; f < static_cast<int>(support.size()); ++f){
+            for (int j = 0; j < info.SignalWidth(); j += info.SignalWidth()/cur_sparsity){
+                updated_support.emplace_back(support[f].IncreaseAt(i, j));
+            }
+        }
+        support = updated_support;
+    }
+    
+    for (int i = 0; i < support.size(); i ++) {
+        out[support[i].Flatten()] += 1;
+    }
+
+    
+    return out;
+}
+
 
 template <class Generator>
 std::vector<complex_t> GenRandomSupportWithOvertones(const SignalInfo& info, int64_t sparsity, Generator& gen) {
@@ -120,6 +151,14 @@ public:
         return GenCombined(info, sparsity, gen);
     }
 };
+
+class TwoCombGenerator : public SignalGenerator {
+public:
+    std::vector<complex_t> GenSignal(const SignalInfo& info, int64_t sparsity, std::mt19937_64& gen) override {
+        return GenTwoCombs(info, sparsity, gen);
+    }
+};
+
 
 void PrintDur(const std::chrono::nanoseconds& dur) {
     std::cout << std::chrono::duration<double, std::milli>(dur).count();
@@ -431,6 +470,8 @@ public:
                 generator_.push_back(std::make_unique<RandomSignalGeneratorWithOvertones>());
             } else if (signal_type == "comb") {
                 generator_.push_back(std::make_unique<DiracCombGenerator>());
+            } else if (signal_type == "twocomb") {
+                generator_.push_back(std::make_unique<TwoCombGenerator>());
             } else if (signal_type == "combined") {
                 generator_.push_back(std::make_unique<RandomCombGenerator>());
             } else {
