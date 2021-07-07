@@ -49,7 +49,7 @@ def make_graph(name, title, p, algs, algs_names, data, samples, extra_data_path=
                 label = label.strip()
                 p1 = list(map(int, f.readline().split()))
                 v1 = np.array(list(map(int, f.readline().split())))
-                plt.plot(p1, v1 / milsec, label=label)
+                plt.plot(np.power(2, p1), v1 / milsec, label=label)
                 label = f.readline()
 
     plt.legend(prop=font, loc='best', frameon=True,fancybox=True,framealpha=0.8,edgecolor='k')

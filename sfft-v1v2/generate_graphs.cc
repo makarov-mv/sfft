@@ -241,10 +241,12 @@ int main(int argc, char **argv){
   double tolerance_loc = 1.e-8;
   double tolerance_est = 1.e-8;
 
+  bool use_comb_signal = false;
+
   TIMING = false;
 
 
-  while ((ch = getopt(argc, argv, "hNKSR:OWV")) != EOF){
+  while ((ch = getopt(argc, argv, "hNKSR:OWCV")) != EOF){
     switch (ch){
     case 'N':
 	  Graph_type =1;
@@ -267,6 +269,9 @@ int main(int argc, char **argv){
 	case 'V':
 	  VERBOSE = true;
 	  break;
+    case 'C':
+      use_comb_signal = true;
+      break;
     case 'h':
     default:
       usage(argv[0]);
@@ -281,7 +286,7 @@ int main(int argc, char **argv){
   double SNR_vec[14]   = {-20, -10, -7, -3, 0, 3, 7, 10, 20, 30, 40, 50, 60, 120};
 
   if(Graph_type ==1)
-	  length = 10;
+	  length = 12;
   else if(Graph_type ==2)
 	  length = 8;
   else
@@ -296,7 +301,7 @@ int main(int argc, char **argv){
 
      if(Graph_type ==1){
 		 n = N_vec[pp];
-	     k = 50;
+	     k = 32;
          get_expermient_vs_N_parameters(n, WITH_COMB, Bcst_loc, Bcst_est, Comb_cst, loc_loops, est_loops, threshold_loops, Comb_loops, tolerance_loc, tolerance_est);
 	 }
 	 else if(Graph_type ==2){
@@ -350,12 +355,18 @@ int main(int argc, char **argv){
 	     complex_t *x = (complex_t *)malloc(n*sizeof(*x));
 		 complex_t *x_f = (complex_t *)calloc(n, sizeof(*x_f));
 	     int *LARGE_FREQ = (int *)malloc(k*sizeof(*LARGE_FREQ));
-  
-		 // Randomized the None Zero Bins and Generate Time Domain Data
-		 for (int i=0;i<k; i++)
-		 {
-		   LARGE_FREQ[i] = (unsigned) floor( drand48() * n);
-		   x_f[LARGE_FREQ[i]] = 1.0; 
+
+		 if (!use_comb_signal) {
+             // Randomized the None Zero Bins and Generate Time Domain Data
+             for (int i = 0; i < k; i++) {
+                 LARGE_FREQ[i] = (unsigned) floor(drand48() * n);
+                 x_f[LARGE_FREQ[i]] = 1.0;
+             }
+         } else {
+             for (int i = 0; i < k; i++) {
+                 LARGE_FREQ[i] = (n / k) * i;
+                 x_f[LARGE_FREQ[i]] = 1.0;
+             }
 		 }
 
 		 fftw_dft(x, n, x_f, 1);
