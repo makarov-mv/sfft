@@ -25,6 +25,7 @@ public:
             for (int64_t iter = 0; iter < table_size; ++iter) {
                 Next(time);
                 indices_.push_back(time);
+                //random_signs_.push_back((index_gen_(rand_gen_)%2 - 0.5)*2.);
             }
 
     }
@@ -34,6 +35,7 @@ public:
     }
     
     std::vector<Key> indices_;
+    //std::vector<double> random_signs_;
 
 private:
     SignalInfo info_;
@@ -48,6 +50,49 @@ struct TransformSettings {
     bool assume_random_phase{false};
     int random_phase_sparsity_koef{1};
     bool use_projection_recovery{true};
+};
+
+class AlignedVector {
+public:
+    AlignedVector(int n) {
+        data_ = nullptr;
+        realloc_data(n);
+    }
+
+    void expand(int n) {
+        if (n > size_) {
+            realloc_data(n);
+        }
+    }
+
+    ~AlignedVector() {
+        if (data_ != nullptr) {
+            std::free(data_);
+        }
+    }
+
+    double& operator[](int i) {
+        return data_[i];
+    }
+
+private:
+    int size_;
+    double* data_;
+
+    void realloc_data(int n) {
+        if (data_ != nullptr) {
+            std::free(data_);
+            data_ = nullptr;
+        }
+        if (n % 2 == 1) {
+            n += 1;
+        }
+        data_ = (double *) std::malloc(n * sizeof(double));
+        for (int i = 0; i < n; ++i) {
+            data_[i] = 0;
+        }
+        size_ = n;
+    }
 };
 
 bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const SplittingTree& tree,
@@ -68,6 +113,7 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
         
     Key diff(info);
     Key time(info);
+    
 
     //static AlignedVector phi(freq_precalc.size());
     //phi.expand(freq_precalc.size());
@@ -86,8 +132,10 @@ bool ZeroTest(const Signal& x, const FrequencyMap& recovered_freq, const Splitti
     
     complex_t total_sum = 0;
     
-
+    //std::cout << "signal size: " << info.SignalSize() << ", sparsity: " << sparsity << ", max iter: " << max_iters << '\n';
+    
     for (int64_t iter = 0; iter < max_iters; ++iter) {
+        //delta.Next(time);
         time = delta.indices_[iter];
         //double rand_sign = 1.; //delta.random_signs_[iter];
         
@@ -157,6 +205,7 @@ std::optional<FrequencyMap> SparseFFT(const Signal& x, const SignalInfo& info, i
     while (!tree.IsEmpty() && (settings.assume_random_phase || (tree.LeavesCount() + static_cast<int>(recovered_freq.size())) <= expected_sparsity)) {
         NodePtr node = tree.GetLightestNode();
         if (node->level == info.Dimensions() * info.LogSignalWidth()) {
+            //std::cout << "now we are peeling a freq" << '\n';
             auto filter = Filter(tree, node, info);
             complex_t recovered = 0;
             for (const auto& freq : total_freq) {
@@ -174,6 +223,9 @@ std::optional<FrequencyMap> SparseFFT(const Signal& x, const SignalInfo& info, i
         } else {
             node->AddChildren();
             int64_t zerotest_budget = expected_sparsity - (1-settings.assume_random_phase)*(tree.LeavesCount()-2 + static_cast<int>(recovered_freq.size()));
+            
+            //std::cout << "sparsity: " << expected_sparsity << ", zerotest budget: " << zerotest_budget << '\n';
+            
             if (!ZeroTest(x, total_freq, tree, node->left, info, zerotest_budget, delta, settings)) {
                 tree.RemoveNode(node->left);
             }
@@ -374,7 +426,8 @@ FrequencyMap RecursiveSparseFFT(const Signal& x, const SignalInfo& info, int64_t
     if (info.IsSmallSignalWidth()) {
         PrepareCosSinTables(info.SignalWidth());
     }
-
+    
+    //std::cout << "rank: " << rank << ", signal size: " << info.SignalSize() << '\n';
     
     FrequencyMap prefiltered;
     if (settings.use_comb) {
@@ -390,6 +443,7 @@ FrequencyMap RecursiveSparseFFT(const Signal& x, const SignalInfo& info, int64_t
             prefiltered[w.first] = w.second;
         }
         sparsity = std::max<int64_t>(1, sparsity - res.size());
+        //std::cout << "log n: " << info.LogSignalWidth() << ", rank: " << rank << ", sparsity after projection: " << sparsity << '\n';
     }
     
     NodePtr parent(nullptr);
@@ -400,7 +454,7 @@ FrequencyMap RecursiveSparseFFT(const Signal& x, const SignalInfo& info, int64_t
     
     IndexGenerator delta(info, sparsity, settings.zero_test_koef, seed);
     
-    double step = pow(sparsity / 2.0, 1. / rank);
+    double step = pow(2, llround(log2(sparsity)/rank));
     std::vector<int> sparsities(rank);
     sparsities[rank - 1] = sparsity;
     double curspars = sparsity / step;
