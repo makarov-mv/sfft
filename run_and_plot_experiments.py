@@ -123,24 +123,30 @@ def run_measure_run(algs, args):
 
 
 
-parser = argparse.ArgumentParser(description="Run experiments. Note that not all of the algorithms work properly on signal of size greater than 2^22")
-parser.add_argument("--no_graph", action='store_true', help='whether to generate graph')
-parser.add_argument("--plot_scale", choices=['log', 'linear'], default="log", help='the scale of y axis in the plots')
-parser.add_argument("--sparsity", action='store', default=32, type=int, help='signal sparsity')
-parser.add_argument("--samples", action='store', default=60, type=int, help='number of samples to average over')
-parser.add_argument("--dimensions", action='store', default=3, type=int, help='number of dimensions')
-parser.add_argument("--first_logn", action='store', default=3, type=int, help='logarithm of the first value of n to test')
-parser.add_argument("--last_logn", action='store', default=8, type=int, help='logarithm of the last value of n to test')
-parser.add_argument("--use_comb_filter", action='store', default=0, type=int, help='whether to use comb filter')
-parser.add_argument("--use_projection_recovery", action='store', default=1, type=int, help='whether to use projection recovery')
-parser.add_argument("--signal_type", choices=['random', 'comb', 'combined', 'twocomb'], default='combined', help='choose signal type to run experiments on')
-parser.add_argument("--zero_test_coef", action='store', default=0.25, type=float, help='ZeroTest coefficient')
-parser.add_argument("--path", action='store', default="./build-xcode/Release/measure_run", type=str, help='location of measure_run executable')
-parser.add_argument("--recursive_algorithm_count", action='store', default=2, help="number of recursive algorithms to test")
-parser.add_argument("--output", action='store', default="Graph.pdf", type=str, help='output graph name')
-parser.add_argument("--extra_data", action='store', default='', help='extra data to plot')
+def get_args():
+    parser = argparse.ArgumentParser(description="Run experiments. Note that not all of the algorithms work properly on signal of size greater than 2^22")
+    parser.add_argument("--no_graph", action='store_true', help='whether to generate graph')
+    parser.add_argument("--plot_scale", choices=['log', 'linear'], default="log", help='the scale of y axis in the plots')
+    parser.add_argument("--sparsity", action='store', default=32, type=int, help='signal sparsity')
+    parser.add_argument("--samples", action='store', default=60, type=int, help='number of samples to average over')
+    parser.add_argument("--dimensions", action='store', default=3, type=int, help='number of dimensions')
+    parser.add_argument("--first_logn", action='store', default=3, type=int, help='logarithm of the first value of n to test')
+    parser.add_argument("--last_logn", action='store', default=8, type=int, help='logarithm of the last value of n to test')
+    parser.add_argument("--use_comb_filter", action='store', default=0, type=int, help='whether to use comb filter')
+    parser.add_argument("--use_projection_recovery", action='store', default=1, type=int, help='whether to use projection recovery')
+    parser.add_argument("--signal_type", choices=['random', 'comb', 'combined', 'twocomb'], default='combined', help='choose signal type to run experiments on')
+    parser.add_argument("--zero_test_coef", action='store', default=0.25, type=float, help='ZeroTest coefficient')
+    parser.add_argument("--path", action='store', default="./build-xcode/Release/measure_run", type=str, help='location of measure_run executable')
+    parser.add_argument("--recursive_algorithm_count", action='store', default=2, help="number of recursive algorithms to test")
+    parser.add_argument("--output", action='store', default="Graph.pdf", type=str, help='output graph name')
+    parser.add_argument("--extra_data", action='store', default='', help='extra data to plot')
 
-args = parser.parse_args()
+    args = parser.parse_args()
+    
+    return args
+
+
+args = get_args()
 
 algs = [
     'fftw',
