@@ -41,16 +41,21 @@ def make_graph(name, title, p, algs, algs_names, data, samples, plot_scale, extr
         best_time = runtimes_mean[best_idx,np.arange(len(p)),i]
         best_std = runtimes_std[best_idx,np.arange(len(p)),i]
         plt.errorbar(2**p, best_time, yerr= best_std,linestyle=linestyles[i], color= color_[i], linewidth=2.3, capsize=6, ecolor=ecolor_[i], label=algs_names[alg])
-        
+
     if extra_data_path:
         with open(extra_data_path, 'r') as f:
             label = f.readline()
-            while len(label) > 1:
-                label = label.strip()
-                p1 = list(map(int, f.readline().split()))
-                v1 = np.array(list(map(int, f.readline().split())))
-                plt.plot(np.power(2, p1), v1 / milsec, label=label)
-                label = f.readline()
+            label = label.strip()
+            plot_names[label] = label
+            new_time = []
+            new_std = []
+            p1 = list(map(int, f.readline().split()))
+            for i in range(len(p1)):
+                v1 = list(map(int, f.readline().split()))
+                v1 = np.array(v1) / milsec
+                new_time.append(np.mean(v1))
+                new_std.append(np.std(v1))
+            plt.errorbar(2**np.array(p1), new_time, yerr= new_std,linestyle=linestyles[len(algs)], color= color_[len(algs)], linewidth=2.3, capsize=6, ecolor=ecolor_[len(algs)], label=label)
 
     plt.legend(prop=font, loc='best', frameon=True,fancybox=True,framealpha=0.8,edgecolor='k')
     plt.title(title, fontproperties = font)

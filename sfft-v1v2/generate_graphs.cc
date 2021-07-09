@@ -280,20 +280,20 @@ int main(int argc, char **argv){
   }
   
   int length =1;
-  int N_vec[12] = {8192, 16384, 32768, 65536, 131072, 262144,  524288, 1048576, 2097152,  4194304, 8388608, 16777216};
-  int Nlog_vec[12] = {13, 14, 15, 16, 17, 18,  19, 20, 21,  22, 23, 24};
+  int N_vec[12] = {16384, 32768, 65536, 131072, 262144,  524288, 1048576, 2097152,  4194304, 8388608, 16777216};
+  int Nlog_vec[12] = {14, 15, 16, 17, 18,  19, 20, 21,  22, 23, 24};
   int K_vec[8]  = {50, 100, 200, 500, 1000, 2000, 2500, 4000};
   double SNR_vec[14]   = {-20, -10, -7, -3, 0, 3, 7, 10, 20, 30, 40, 50, 60, 120};
 
   if(Graph_type ==1)
-	  length = 12;
+	  length = 11;
   else if(Graph_type ==2)
 	  length = 8;
   else
 	  length = 14;
 
-  std::pair<int, long long> *SFFT_Time = (std::pair<int, long long> *)malloc(length*sizeof(*SFFT_Time));
-  std::pair<int, long long> *FFTW_Time = (std::pair<int, long long> *)malloc(length*sizeof(*FFTW_Time));
+  std::pair<int, long long> *SFFT_Time = (std::pair<int, long long> *)malloc(length*repetitions*sizeof(*SFFT_Time));
+  std::pair<int, long long> *FFTW_Time = (std::pair<int, long long> *)malloc(length*repetitions*sizeof(*FFTW_Time));
   std::pair<int, double> *SFFT_Error = (std::pair<int, double> *)malloc(length*sizeof(*SFFT_Error));
   
 
@@ -342,9 +342,7 @@ int main(int argc, char **argv){
 //		  printf("Running SFFT and FFTW %d times for N=%d and K=%d\n", repetitions,n,k);
 //	  else
 //		  printf("Running SFFT and FFTW %d times for N=%d and K=%d and SNR=%f dB\n", repetitions,n,k,snr);
-	      
-	  double avg_sfft_time = 0;
-	  double avg_fftw_time = 0;
+
 	  double avg_sfft_error = 0;
 	  long long it_sfft;
       long long it_fftw;
@@ -388,9 +386,16 @@ int main(int argc, char **argv){
 					 B_est, est_loops, W_Comb, Comb_loops,
 					 1, FFTW_OPT, LARGE_FREQ, k, x_f, it_sfft, it_fftw, it_error);
 
-		 avg_sfft_time += it_sfft;
-		 avg_fftw_time += it_fftw;
 		 avg_sfft_error += it_error;
+
+          if(Graph_type ==1) {
+              SFFT_Time[pp * repetitions + rr] = std::make_pair(n, it_sfft);
+              FFTW_Time[pp * repetitions + rr] = std::make_pair(n, it_fftw);
+          }
+          else if(Graph_type ==2) {
+              SFFT_Time[pp * repetitions + rr] = std::make_pair(k, it_sfft);
+              FFTW_Time[pp * repetitions + rr] = std::make_pair(k, it_fftw);
+          }
 
 		free(x);
 		free(x_f);
@@ -398,16 +403,9 @@ int main(int argc, char **argv){
 
 	 }
 
-    if(Graph_type ==1){
-      SFFT_Time[pp] = std::make_pair(n, avg_sfft_time /repetitions);
-	  FFTW_Time[pp] = std::make_pair(n, avg_fftw_time /repetitions);
-	}
-	else if(Graph_type ==2){
-      SFFT_Time[pp] = std::make_pair(k, avg_sfft_time /repetitions);
-	  FFTW_Time[pp] = std::make_pair(k, avg_fftw_time /repetitions);
-	}
-	else
-      SFFT_Error[pp] = std::make_pair(snr, avg_sfft_error /repetitions);
+    if(Graph_type ==3) {
+        SFFT_Error[pp] = std::make_pair(snr, avg_sfft_error / repetitions);
+    }
   }
 
 
@@ -443,9 +441,11 @@ int main(int argc, char **argv){
       }
       printf("\n");
       for (int pp = 0; pp < length; ++pp) {
-          printf("%lld ", SFFT_Time[pp].second);
+          for (int rr = 0; rr < repetitions; ++rr) {
+              printf("%lld ", SFFT_Time[pp * repetitions + rr].second);
+          }
+          printf("\n");
       }
-      printf("\n");
 	}
 
   free(SFFT_Time);

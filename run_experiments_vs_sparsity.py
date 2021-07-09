@@ -59,7 +59,7 @@ def make_graph(name, title, p, algs, algs_names, data, samples, plot_scale, extr
     plt.grid()
     plt.yscale(plot_scale)
     plt.xscale('log', base=2)
-    plt.ylim(2, 1000)
+    plt.ylim(0.7, 1000)
     plt.xticks(fontsize=16)
     plt.yticks(fontsize=14)
     plt.savefig(name, dpi=500, bbox_inches='tight')
