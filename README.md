@@ -1,6 +1,8 @@
 *This repository is a clone of https://bitbucket.org/michaelkapralov/sfft-experiments/src/master/.*
 
 Implementation of dimension-independent sparse Fourier transform.
+Link to the paper: https://arxiv.org/abs/2107.07347
+
 # Requirements
 To compile and run tests you will need:
 * CMAKE >=3.8
